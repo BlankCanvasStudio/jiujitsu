@@ -198,7 +198,6 @@ def p_command(p):
         p[0] = ast.node(kind='command', parts=p[1], pos=_partsspan(p[1]))
     name = p[1][0].word
     args = p[1][1:]
-    p[0].command = 'something'
     if name == 'echo':
         text = ' '.join([x.word for x in args])
         p[0].command = Echo(text)
@@ -428,7 +427,7 @@ def p_list_terminator(p):
                        | EOF"""
     if p[1] == ';':
         p[0] = ast.node(kind='operator', op=';', pos=p.lexspan(1))
-"\ndef f_list(p):\n    # If its at the top level, make sure the final action is to print the STDIO to screen\n    if (p[0].kind == 'list'): print('list: ', STDIO.read())\n\ndef f_compound_list(p):\n    # If its at the top level, make sure the final action is to print the STDIO to screen\n    if (p[0].kind == 'compound_list'): print('compound_list: ', STDIO.read())\n\ndef f_inputunit(p):\n    print('in the input unit')\n"
+"\ndef f_simple_command_element(p):\n    print('p: ', p[0])\n"
 
 def p_newline_list(p):
     """newline_list : empty
@@ -458,12 +457,21 @@ def p_simple_list(p):
             self.parts = parts
 
         def __call__(self):
-            for (i, part) in enumerate(self.parts):
-                if i % 2 == 0:
-                    part.command()
-            print(STDIO.read())
-    p[0].command = Run(p[0].parts)
-    print('p0 in: ', p[0].dump())
+            if type(self.parts) == list:
+                for (i, part) in enumerate(self.parts):
+                    if i % 2 == 0:
+                        part.command()
+            else:
+                print(' in THIS')
+                self.parts.command()
+                print('command: ', self.parts.command)
+            print(STDIO.OUT)
+    if p[0].kind == 'pipeline':
+        p[0].command = Run(p[0].parts)
+    if p[0].kind == 'command':
+        print('p0: ', p[0])
+        print('p1: ', p[1])
+        p[0].command = Run(copy.deepcopy(p[0]))
 
 def p_simple_list1(p):
     """simple_list1 : simple_list1 AND_AND newline_list simple_list1

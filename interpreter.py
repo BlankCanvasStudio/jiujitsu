@@ -34,6 +34,8 @@ class Echo:
 
 
 def f_command(p):
+    name = p[1][0].word
+    args = p[1][1:]
     if name == 'echo':
         text = ' '.join([ x.word for x in args ])
         p[0].command = Echo(text)
@@ -65,10 +67,26 @@ def f_simple_list(p):
         def __init__(self, parts):
             self.parts = parts
         def __call__(self):
-            for i, part in enumerate(self.parts):
-                if i % 2 == 0:
-                    part.command()
-            print(STDIO.read())  # Print the STDOUT if its the last command
-    
-    p[0].command = Run(p[0].parts)
+            if type(self.parts) == list:
+                for i, part in enumerate(self.parts):
+                    if i % 2 == 0:
+                        part.command()
+                
+            else:
+                print(' in THIS')
+                self.parts.command()
+                print('command: ', self.parts.command)
+            print(STDIO.OUT)  # Print the STDOUT if its the last command
 
+    if p[0].kind == 'pipeline':
+        p[0].command = Run(p[0].parts)
+    if p[0].kind == 'command':
+        print('p0: ', p[0])
+        print('p1: ', p[1])
+        p[0].command = Run(copy.deepcopy(p[0]))
+
+
+"""
+def f_simple_command_element(p):
+    print('p: ', p[0])
+"""
