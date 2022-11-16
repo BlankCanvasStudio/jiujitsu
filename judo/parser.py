@@ -1,27 +1,38 @@
 import os, copy
 from bashlex import yacc, tokenizer, state, ast, subst, flags, errors, heredoc
+import functools
 open_sockets = []
 
 class FileSocket:
 
     def __init__(self):
-        self.text = ''
+        self.OUT = ''
         global open_sockets
         self.id = len(open_sockets)
+        self.IN = ''
         open_sockets += [self]
 
     def write(self, text_in):
-        self.text += text_in
+        self.OUT += text_in
 
     def read(self):
-        tmp = self.text
-        self.text = ''
+        tmp = self.IN
+        self.IN = ''
         return tmp
+
+    def transfer(self):
+        self.IN = self.OUT
+        self.OUT = ''
 STDIO = FileSocket()
 
-def echo(text):
-    global STDIO
-    STDIO.write(text)
+class Echo:
+
+    def __init__(self, text):
+        self.text = text
+
+    def __call__(self):
+        global STDIO
+        STDIO.write(self.text)
 
 def _partsspan(parts):
     return (parts[0].pos[0], parts[-1].pos[1])
@@ -187,9 +198,10 @@ def p_command(p):
         p[0] = ast.node(kind='command', parts=p[1], pos=_partsspan(p[1]))
     name = p[1][0].word
     args = p[1][1:]
+    p[0].command = 'something'
     if name == 'echo':
         text = ' '.join([x.word for x in args])
-        echo(text)
+        p[0].command = Echo(text)
     else:
         raise ValueError('Function call ' + name + ' not implemented')
 
@@ -416,6 +428,7 @@ def p_list_terminator(p):
                        | EOF"""
     if p[1] == ';':
         p[0] = ast.node(kind='operator', op=';', pos=p.lexspan(1))
+"\ndef f_list(p):\n    # If its at the top level, make sure the final action is to print the STDIO to screen\n    if (p[0].kind == 'list'): print('list: ', STDIO.read())\n\ndef f_compound_list(p):\n    # If its at the top level, make sure the final action is to print the STDIO to screen\n    if (p[0].kind == 'compound_list'): print('compound_list: ', STDIO.read())\n\ndef f_inputunit(p):\n    print('in the input unit')\n"
 
 def p_newline_list(p):
     """newline_list : empty
@@ -439,6 +452,19 @@ def p_simple_list(p):
     if len(p) == 2 and p.lexer._parserstate & flags.parser.CMDSUBST and (p.lexer._current_token.nopos() == p.lexer._shell_eof_token):
         p.accept()
 
+    class Run:
+
+        def __init__(self, parts):
+            self.parts = parts
+
+        def __call__(self):
+            for (i, part) in enumerate(self.parts):
+                if i % 2 == 0:
+                    part.command()
+            print(STDIO.read())
+    p[0].command = Run(p[0].parts)
+    print('p0 in: ', p[0].dump())
+
 def p_simple_list1(p):
     """simple_list1 : simple_list1 AND_AND newline_list simple_list1
                     | simple_list1 OR_OR newline_list simple_list1
@@ -451,7 +477,6 @@ def p_simple_list1(p):
         p[0] = p[1]
         p[0].append(ast.node(kind='operator', op=p[2], pos=p.lexspan(2)))
         p[0].extend(p[len(p) - 1])
-"\ndef f_list(p):\n    # If its at the top level, make sure the final action is to print the STDIO to screen\n    if (p[0].kind == 'list'): print('list: ', STDIO.read())\n\ndef f_compound_list(p):\n    # If its at the top level, make sure the final action is to print the STDIO to screen\n    if (p[0].kind == 'compound_list'): print('compound_list: ', STDIO.read())\n\ndef f_inputunit(p):\n    print('in the input unit')\n"
 
 def p_pipeline_command(p):
     """pipeline_command : pipeline
@@ -473,6 +498,24 @@ def p_pipeline_command(p):
         else:
             p[0] = ast.node(kind='pipeline', parts=[node, p[2]], pos=(node.pos[0], p[2].pos[1]))
 
+    class Run:
+
+        def __init__(self, parts):
+            self.parts = parts
+
+        def __call__(self):
+            for (i, part) in enumerate(self.parts):
+                if i % 2 == 0:
+                    try:
+                        part.command()
+                        if i != len(self.parts) - 1:
+                            STDIO.transfer()
+                    except:
+                        print('failed for: ', part)
+            print(STDIO.OUT)
+    if not (len(p) == 2 and len(p[1]) == 1):
+        p[0].command = Run(p[0].parts)
+
 def p_pipeline(p):
     """pipeline : pipeline BAR newline_list pipeline
                 | pipeline BAR_AND newline_list pipeline
@@ -483,13 +526,6 @@ def p_pipeline(p):
         p[0] = p[1]
         p[0].append(ast.node(kind='pipe', pipe=p[2], pos=p.lexspan(2)))
         p[0].extend(p[len(p) - 1])
-    if len(p) == 2:
-        pass
-    else:
-        print('final p0: ', p[0])
-        print('actual p1: ', p[1])
-        print('p extend: ', p[len(p) - 1])
-        print('\n\n\n')
 
 def p_timespec(p):
     """timespec : TIME

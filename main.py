@@ -11,8 +11,12 @@ sys.path.insert(1, '/home/adam/GitHub/judo/judo/')
 
 import parser as bashlex
 
-nodes = bashlex.parse("echo something else | echo that | echo this")
+nodes = bashlex.parse("echo something else | echo this ; echo even more")
 
 for node in nodes:
-    print(node.dump())
+    node.command()
+    # print(node.dump())
+
+# for node in nodes:
+#     print(node.dump())
 # print(parser.dump())
