@@ -307,9 +307,18 @@ class CLInterpreter:
 
     def syscall(self, bashCommand):
         tmpFilename = 'tmpFile.sh'
+        # Replace all the variables with values in the controlled environment 
+        nodes = bashparse.parse(bashCommand)
+        replaced_nodes = []
+        for node in nodes:
+            replaced_nodes += self.env.replace(node)
+        # Rewrite it as text
+        text = ''
+        for node in replaced_nodes:
+            text += str(bashparse.NodeVisitor(node)) + '\n'
         # Write a temporary bash file
         fd = open(tmpFilename, 'w')
-        fd.write('#!/bin/bash\n'+bashCommand)
+        fd.write('#!/bin/bash\n'+text)
         fd.close()
         # Make it executable
         st = os.stat(tmpFilename)

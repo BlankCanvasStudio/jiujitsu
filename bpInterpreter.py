@@ -69,6 +69,9 @@ class InterpreterBase():
             if showFiles:
                 print(file.contents)
 
+    def replace(self, node):
+        return bashparse.replace_variables(node, self.variables)
+
 
     def interpreter(self, node, vstr):
         if node.kind == 'pipeline':
