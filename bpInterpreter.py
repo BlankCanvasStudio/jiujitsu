@@ -43,7 +43,7 @@ class InterpreterBase():
     def __init__(self, working_dir = '~'):
         self.STDIO = FileSocket(id_num = 0)
         self.working_dir = working_dir
-        self.variables = {'sshports':['one', 'two']}
+        self.variables = {}
         self.fs = {}
         self.open_sockets = []
         self.bin = []
@@ -68,6 +68,10 @@ class InterpreterBase():
             print('  ' + name + ' permissions: ' + str(file.permissions))
             if showFiles:
                 print(file.contents)
+
+    def update_file_system(self, name,  contents, permissions, location = None):
+        if location is None: location = self.working_dir
+        self.fs[location + '/' + name] = File(name=name, contents=contents, permissions=permissions)
 
     def replace(self, node):
         return bashparse.replace_variables(node, self.variables)
@@ -229,6 +233,8 @@ class InterpreterBase():
             print('command: ', command)
             raise ValueError('Command not implemented')
 
+    def set_variable(self, name, value):
+        self.variables[name] = value
 
 class Interpreter(InterpreterBase):
     
@@ -254,7 +260,7 @@ class Interpreter(InterpreterBase):
         if validators.url(args[0].word): 
             filename = input('Wget requested "'+ args[0].word +'". Please enter a filename to pass in: ')
             file_contents = open(filename).read()
-            self.fs[self.working_dir + '/' + 'index.html'] = File(name='index.html', contents=file_contents, permissions='rw-rw-rw-')
+            self.update_file_system(name='index.html', contents=file_contents, permissions='rw-rw-rw-')
         else:
             raise ValueError("Invalid URL to wget")
     
