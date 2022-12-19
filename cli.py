@@ -2,7 +2,7 @@
 """ Bringing the death star to a knife fight """
 
 from enum import Enum
-import subprocess, os, stat
+import subprocess, os, stat, copy
 import bpInterpreter, bashparse
 
 class LexerError(Exception):
@@ -54,6 +54,7 @@ class Lexer:
     def __init__(self, text):
         self.text = text
         self.index = 0
+        self.token_index = 0
         self.current_char = self.text[self.index]
         self.first_word = True
         self.in_flags = False
@@ -133,12 +134,12 @@ class Lexer:
                 self.skip_comment()
                 continue
 
-            if self.current_char == '-':
+            if self.current_char == '-' and self.token_index == 1:
                 self.advance() # Shift off the -
                 self.in_flags = True
                 continue
             
-            if self.in_flags:
+            if self.in_flags and self.token_index == 1:
                 return self.flags()
 
             if self.current_char == ';':
@@ -148,6 +149,8 @@ class Lexer:
                 return self.CMD()
             elif self.current_char is not None:
                 return self.ARG()
+            
+            self.token_index = self.token_index + 1
 
         return Token(type=TokenType.EOF, value=None)
 
@@ -282,13 +285,14 @@ class Parser:
 class CLInterpreter:
     def __init__(self, maintain_history = True):
         self.funcs = {
-            'NEXT': self.next, 
-            'STATE': self.state, 
-            'RUN': self.run,
-            'EXIT': self.exit,
             'LOAD': self.load,
+            'NEXT': self.next, 
             'UNDO': self.undo,
+            'SKIP': self.skip,
+            'RUN': self.run,
             'HISTORY': self.history,
+            'STATE': self.state, 
+            'EXIT': self.exit,
         }
         self.env = bpInterpreter.Interpreter()
         self.history_stack = [ self.env ]
@@ -351,6 +355,9 @@ class CLInterpreter:
                 self.save_state()
             self.env.run(node)
         self.state()
+
+    def skip(self):
+        self.index = self.index + 1
 
     def state(self, flags = [], *args):
         if Flag('p') in flags or len(flags) == 0:
@@ -426,6 +433,7 @@ class CLInterpreter:
     def load(self, flags, *args):
         filename = args[0].value
         self.prog_nodes = bashparse.parse(open(filename).read())
+        self.index = 0
     
     def history(self, flags, *args):
         if Flag('p') in flags or len(flags) == 0:
@@ -454,5 +462,11 @@ class CLInterpreter:
             prog = Parser(Lexer(cmd)).parse()
 
             for cmd in prog.commands:
-                func = self.funcs[cmd.func.upper()]
+                try:
+                    func = self.funcs[cmd.func.upper()]
+                except:
+                    print('Unknown Judo Command: ', cmd.func.upper())
+                    print('Nothing was changed')
+                    break
                 func(cmd.flags, *cmd.args)
+

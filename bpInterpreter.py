@@ -236,6 +236,7 @@ class InterpreterBase():
     def set_variable(self, name, value):
         self.variables[name] = value
 
+
 class Interpreter(InterpreterBase):
     
     def __init__(self, working_dir = '~'):
