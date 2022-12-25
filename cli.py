@@ -120,6 +120,17 @@ class Lexer:
             text += self.current_char
             self.advance()
         return Token(type=TokenType.ARG, value=text)
+    
+    def QUOTE(self):
+        quote_type = self.current_char
+        self.advance()
+        text = ''
+        while (self.current_char != quote_type) or \
+            (self.text[self.index - 1] == '\\' and self.text[index - 2] != '\\'):
+            text += self.current_char
+            self.advance()
+        self.advance() # Move past the final quote
+        return Token(type=TokenType.ARG, value=text)
 
     def get_next_token(self):
 
@@ -149,7 +160,9 @@ class Lexer:
                 return self.CMD()
             elif self.current_char is not None:
                 return self.ARG()
-            
+            elif self.current_char == '"' or self.current_char == "'":
+                return self.QUOTE()
+
             self.token_index = self.token_index + 1
 
         return Token(type=TokenType.EOF, value=None)
@@ -356,7 +369,7 @@ class CLInterpreter:
             self.env.run(node)
         self.state()
 
-    def skip(self):
+    def skip(self, flags, *args):
         self.index = self.index + 1
 
     def state(self, flags = [], *args):
@@ -421,7 +434,7 @@ class CLInterpreter:
     def exit(self, flags):
         self.listening = False
     
-    def undo(self):
+    def undo(self, flags, *args):
         if len(self.history_stack) > 1:
             self.env = self.history_stack[-1]
             self.history_stack = self.history_stack[:-1]
