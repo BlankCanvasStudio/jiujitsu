@@ -85,6 +85,35 @@ To set STDOUT:
 
 <br/>
 
+## ALIAS
+
+This allows the user to create their own commands. The last argument passed in is the new command name and the arguments before that are the command you wish to create. The created command does NOT need to be a complete command, partial aliasing is allowed. Two examples are shown below:
+
+    alias "run echo hello world; state" t
+
+This alias will echo hello world and then print the state afterwards
+
+    alias run echo e
+
+This alias allows the user a shorter way to echo things in the environment as shown below:
+
+    e Hello World
+
+<br/>
+
+## PASS
+
+This command does nothing. Shouldn't ever need to use it but it does exist
+
+<br/>
+
+## VOID 
+
+An alias of PASS
+
+
+<br/>
+
 ## EXIT
 
 Simply exits the terminal
