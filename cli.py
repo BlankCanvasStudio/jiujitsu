@@ -46,10 +46,10 @@ class Lexer:
     command -flags arguments
     only 1 flags section allow, must be proceeded by dash. No double dash shit unless its 
         an argument 
-    Scripting only, no for loops
+    Scripting only, no for loops ?
     """
 
-    def __init__(self, text):
+    def __init__(self, text, alias_table = {}):
         self.text = text
         self.index = 0
         self.token_index = 0
@@ -57,6 +57,7 @@ class Lexer:
         self.first_word = True
         self.in_flags = False
         self.token_array = []
+        self.alias_table = alias_table
 
     def error(self):
         raise LexerError("Unknown Lexer Error. Quitting")
@@ -84,7 +85,7 @@ class Lexer:
         # We said cli only so no block comments?
         while self.current_char is not None:
             self.advance()
-    
+
     def flags(self):
         self.advance() # shift off the -
 
@@ -93,6 +94,23 @@ class Lexer:
             self.advance()
 
         return self.token_array.pop(0)
+
+    def resolve_alias(self, alias):
+        if alias in self.alias_table:   # ideally the token is on the front of the array so alias needs to be preappended ?
+            self.token_array = self.alias_table[alias] + self.token_array
+            return self.token_array.pop(0)
+        else:
+            raise ValueError('Error Occured in Lexer when aliasing. resolve_alias called but no alias found')
+
+    def is_alias(self, alias):
+        return alias in self.alias_table
+    
+    def add_alias(self, name, tokens):
+        if type(tokens) is not list: tokens = [ tokens ]
+        for token in tokens: 
+            if type(token) is not Token: raise ValueError("Error occured in Lexer.add_alias. Only tokens can be passed into function")
+        if type(name) is not str: raise ValueError("Error occured in Lexer.add_alias. Alias name must be a string")
+        self.alias_table[name] = tokens
 
     def EOC(self):
         self.first_word = True
@@ -112,7 +130,7 @@ class Lexer:
             text += self.current_char
             self.advance()
         return Token(type_in=TokenType.ARG, value=text)
-    
+
     def QUOTE(self):
         quote_type = self.current_char
         self.advance()
@@ -151,15 +169,15 @@ class Lexer:
                 return Token(type_in=TokenType.ARG, value=':')
 
             if self.first_word:
-                return self.CMD()
+                token = self.CMD()
+                if self.is_alias(token.value): token = self.resolve_alias(token.value)
+                return token
             elif self.current_char is not None:
                 return self.ARG()
             elif self.current_char == '"' or self.current_char == "'":
                 return self.QUOTE()
 
             self.token_index = self.token_index + 1
-
-        
 
         return Token(type_in=TokenType.EOF, value=None)
 
@@ -308,6 +326,7 @@ class CLInterpreter:
             'RUN': self.run,
             'HISTORY': self.history,
             'STATE': self.state, 
+            'ALIAS': self.alias,
             'EXIT': self.exit,
         }
         self.env = bpInterpreter.Interpreter()
@@ -316,6 +335,7 @@ class CLInterpreter:
         self.index = 0
         self.listening = True
         self.maintain_history = maintain_history
+        self.lexer = Lexer('exit')
 
     def get_next_node(self):
         if self.prog_nodes is None or len(self.prog_nodes) == 0: return None
@@ -466,6 +486,18 @@ class CLInterpreter:
             self.maintain_history = False
         if Arg('toggle') in args:
             self.maintain_history = not self.maintain_history
+    
+    def alias(self, flags, *args):
+        
+        alias = args[-1].value
+        cmd_aliased = ' '.join( [ str(arg.value) for arg in args[:-1] ] ) # convert args to string
+        tmp_lexer = Lexer(cmd_aliased)
+        tokens = []
+        while tmp_lexer.peek() is not None:
+            tokens += [ tmp_lexer.get_next_token() ]
+        self.lexer.add_alias(alias, tokens)
+        print('new alias table: ', self.lexer.alias_table)
+        
 
 
     def set_maintain_history(self, should_i):   # Man this is bad but its funny
@@ -475,8 +507,9 @@ class CLInterpreter:
         print('Welcome to the Judo shell')
         while self.listening:
             cmd = input('> ')
-            prog = Parser(Lexer(cmd)).parse()
-
+            self.lexer = Lexer(cmd, self.lexer.alias_table)
+            prog = Parser(self.lexer).parse()
+            print(prog)
             for cmd in prog.commands:
                 try:
                     func = self.funcs[cmd.func.upper()]
