@@ -58,6 +58,9 @@ class Lexer:
         self.in_flags = False
         self.token_array = []
         self.alias_table = alias_table
+    
+    def new(self, text):
+        self.__init__(text, self.alias_table)
 
     def error(self):
         raise LexerError("Unknown Lexer Error. Quitting")
@@ -114,6 +117,7 @@ class Lexer:
 
     def EOC(self):
         self.first_word = True
+        self.advance()
         return Token(type_in=TokenType.EOC, value=';')
 
     def CMD(self):
@@ -143,12 +147,10 @@ class Lexer:
         return Token(type_in=TokenType.ARG, value=text)
 
     def get_next_token(self):
-
         if len(self.token_array):
             return self.token_array.pop(0)
 
         while self.current_char is not None:
-
             if self.current_char.isspace():
                 self.skip_whitespace()
                 continue
@@ -172,10 +174,10 @@ class Lexer:
                 token = self.CMD()
                 if self.is_alias(token.value): token = self.resolve_alias(token.value)
                 return token
-            elif self.current_char is not None:
-                return self.ARG()
             elif self.current_char == '"' or self.current_char == "'":
                 return self.QUOTE()
+            elif self.current_char is not None:
+                return self.ARG()
 
             self.token_index = self.token_index + 1
 
@@ -254,6 +256,10 @@ class Parser:
     def __init__(self, lexer):
         self.lexer = lexer
         self.current_token = self.get_next_token()
+    
+    def new(self, text):
+        self.lexer.new(text)
+        self.current_token = self.get_next_token()
 
     def get_next_token(self):
         return self.lexer.get_next_token()
@@ -306,7 +312,8 @@ class Parser:
                 self.eat(TokenType.EOC)
         return Program(commands)
 
-    def parse(self):
+    def parse(self, text = None):
+        if text is not None: self.new(text)
         node = self.program()
         if self.current_token.type != TokenType.EOF:
             self.error(
@@ -327,6 +334,8 @@ class CLInterpreter:
             'HISTORY': self.history,
             'STATE': self.state, 
             'ALIAS': self.alias,
+            'PASS': self.void,
+            'VOID': self.void,
             'EXIT': self.exit,
         }
         self.env = bpInterpreter.Interpreter()
@@ -335,7 +344,8 @@ class CLInterpreter:
         self.index = 0
         self.listening = True
         self.maintain_history = maintain_history
-        self.lexer = Lexer('exit')
+        self.lexer = Lexer('pass')
+        self.parser = Parser(self.lexer)
 
     def get_next_node(self):
         if self.prog_nodes is None or len(self.prog_nodes) == 0: return None
@@ -456,6 +466,9 @@ class CLInterpreter:
 
     def exit(self, flags):
         self.listening = False
+
+    def void(self, flags, *args):
+        pass
     
     def undo(self, flags, *args):
         if len(self.history_stack) > 1:
@@ -496,9 +509,6 @@ class CLInterpreter:
         while tmp_lexer.peek() is not None:
             tokens += [ tmp_lexer.get_next_token() ]
         self.lexer.add_alias(alias, tokens)
-        print('new alias table: ', self.lexer.alias_table)
-        
-
 
     def set_maintain_history(self, should_i):   # Man this is bad but its funny
         self.maintain_history = should_i
@@ -507,9 +517,7 @@ class CLInterpreter:
         print('Welcome to the Judo shell')
         while self.listening:
             cmd = input('> ')
-            self.lexer = Lexer(cmd, self.lexer.alias_table)
-            prog = Parser(self.lexer).parse()
-            print(prog)
+            prog = self.parser.parse(cmd)
             for cmd in prog.commands:
                 try:
                     func = self.funcs[cmd.func.upper()]
