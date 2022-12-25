@@ -234,6 +234,7 @@ class InterpreterBase():
             raise ValueError('Command not implemented')
 
     def set_variable(self, name, value):
+        if type(value) is not list: value = [ value ]
         self.variables[name] = value
 
 

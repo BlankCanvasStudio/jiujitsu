@@ -25,14 +25,12 @@ class TokenType(Enum):
     EOC = 'EOC' # End of Command. Very hacky workaround but whatever
 
 class Token():
-    def __init__(self, type, value):
-        self.type = type
+    def __init__(self, type_in, value):
+        self.type = type_in
         self.value = value
     
     def __str__(self):
-        print('type: ', self.type)
-        print('value: ', self.value)
-        return "Token(" + self.type.value + ', value: ', self.value + ')'
+        return "Token(" + self.type.value + ', value: ' + self.value + ')'
     def __repr__(self):
         return self.__str__()
     
@@ -58,6 +56,7 @@ class Lexer:
         self.current_char = self.text[self.index]
         self.first_word = True
         self.in_flags = False
+        self.token_array = []
 
     def error(self):
         raise LexerError("Unknown Lexer Error. Quitting")
@@ -87,24 +86,17 @@ class Lexer:
             self.advance()
     
     def flags(self):
-        token = Token(type=TokenType.FLAG, value=None)
-        flags_text = ''
-        if self.current_char == '-': self.advance()  # Remove the leading -
-        
-        if self.current_char.isalpha():
-            flags_text += self.current_char
+        self.advance() # shift off the -
+
+        while self.current_char is not None and not self.current_char.isspace():
+            self.token_array += [ Token(type_in=TokenType.FLAG, value=self.current_char) ]
             self.advance()
 
-        if self.current_char is None or self.current_char.isspace():
-            self.in_flags = False
-
-        token.value = flags_text
-        
-        return token
+        return self.token_array.pop(0)
 
     def EOC(self):
         self.first_word = True
-        return Token(type=TokenType.EOC, value=';')
+        return Token(type_in=TokenType.EOC, value=';')
 
     def CMD(self):
         text = ''
@@ -112,14 +104,14 @@ class Lexer:
             text += self.current_char
             self.advance()
         self.first_word = False
-        return Token(type=TokenType.CMD, value=text)
+        return Token(type_in=TokenType.CMD, value=text)
 
     def ARG(self):
         text = ''
-        while (self.current_char is not None) and (not self.current_char.isspace()):
+        while (self.current_char is not None) and (self.current_char.isalnum()) and (not self.current_char.isspace()):
             text += self.current_char
             self.advance()
-        return Token(type=TokenType.ARG, value=text)
+        return Token(type_in=TokenType.ARG, value=text)
     
     def QUOTE(self):
         quote_type = self.current_char
@@ -130,9 +122,12 @@ class Lexer:
             text += self.current_char
             self.advance()
         self.advance() # Move past the final quote
-        return Token(type=TokenType.ARG, value=text)
+        return Token(type_in=TokenType.ARG, value=text)
 
     def get_next_token(self):
+
+        if len(self.token_array):
+            return self.token_array.pop(0)
 
         while self.current_char is not None:
 
@@ -145,16 +140,15 @@ class Lexer:
                 self.skip_comment()
                 continue
 
-            if self.current_char == '-' and self.token_index == 1:
-                self.advance() # Shift off the -
-                self.in_flags = True
-                continue
-            
-            if self.in_flags and self.token_index == 1:
+            if self.current_char == '-':
                 return self.flags()
 
             if self.current_char == ';':
                 return self.EOC()
+            
+            if self.current_char == ':':
+                self.advance()
+                return Token(type_in=TokenType.ARG, value=':')
 
             if self.first_word:
                 return self.CMD()
@@ -165,7 +159,9 @@ class Lexer:
 
             self.token_index = self.token_index + 1
 
-        return Token(type=TokenType.EOF, value=None)
+        
+
+        return Token(type_in=TokenType.EOF, value=None)
 
 
 def ValidateTypeArray(array, type_in):
@@ -181,7 +177,9 @@ class Flag(AST):
     def __init__(self, value):
         self.value = value
     def __str__(self):
-        return str(self.value)
+        return "Flag{" + str(self.value) + "}"
+    def __repr__(self):
+        return self.__str__()
     def __eq__(self, other):
         if type(other) is not Flag: return False 
         return other.value == self.value
@@ -190,7 +188,9 @@ class Arg(AST):
     def __init__(self, value):
         self.value = value
     def __str__(self):
-        return str(self.value)
+        return "Arg{" + str(self.value) + "}"
+    def __repr__(self):
+        return self.__str__()
     def __eq__(self, other):
         if type(other) is not Arg: return False 
         return other.value == self.value
@@ -219,6 +219,9 @@ class Command(AST):
         for arg in self.args: 
             if arg not in other.args: return False 
         return True
+    
+    def __repr__(self):
+        return self.__str__()
 
 class Program(AST):
     def __init__(self, commands):
@@ -372,30 +375,28 @@ class CLInterpreter:
     def skip(self, flags, *args):
         self.index = self.index + 1
 
-    def state(self, flags = [], *args):
-        if Flag('p') in flags or len(flags) == 0:
-            self.env.showState()
+    def state(self, flags, *args):
         if Flag('s') in flags:  # This means they want to set something in the file system
             if len(args) == 0:
                 pass
             elif Arg('var') == args[0]:
-                var_values = args[1:]
+                var_values = args[1:]   # Remove Arg{var}
                 while len(var_values) >= 3 and var_values[1] == Arg(':'):    # Man I hate this implementation
-                    self.env.set_variable(var_values[0], var_values[2]) # Name:Value
+                    self.env.set_variable(var_values[0].value, var_values[2].value) # Name:Value
                     var_values = var_values[3:] if len(var_values) > 3 else []
             elif Arg('fs') == args[0]:
                 working_args = args[1:]
                 while len(working_args):
-                    file_name = working_args.pop(0)
+                    file_name = working_args.pop(0).value
                     if working_args[0] != Arg(':'): 
                         print('Invalid file formation for state -s fs')
                         return
                     working_args.pop(0)
                     if not len(working_args): print('Invalid file formation for state -s fs. File contents needed')
-                    file_contents = working_args.pop(0)
+                    file_contents = working_args.pop(0).value
                     if working_args[0] == Arg(':') and len(working_args) > 2:
                         working_args.pop(0)
-                        file_permissions = working_args.pop(0)
+                        file_permissions = working_args.pop(0).value
                     else:
                         file_permissions = 'rw-rw-rw-'
                     self.env.update_file_system(nam=file_name, contents=file_contents, permissions=file_permissions)
@@ -404,20 +405,22 @@ class CLInterpreter:
                 if len(args) > 2:
                     print('Invalid Number of arguments to state dir')
                 else:
-                    self.env.working_dir = str(args[1])
+                    self.env.working_dir = str(args[1].value)
             elif Arg('stdin') == args[0]:
                 arg_text = ''
                 for arg in args[1:]:
-                    arg_text += str(arg)
+                    arg_text += str(arg.value)
                 self.env.STDIO.write(arg_text)
             elif Arg('stdout') == args[0]:
                 arg_text = ''
                 for arg in args[1:]:
-                    arg_text += str(arg)
+                    arg_text += str(arg.value)
                 self.env.STDIO.write(arg_text)
                 self.end.transfer()
             else:
                 print('Unkown argument: ' + str(args[0]) + ' passed to stateto state')
+        if Flag('p') in flags or len(flags) == 0:
+            self.env.showState()
 
     def run(self, flags, *args):
         text = ''
