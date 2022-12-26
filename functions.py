@@ -1,3 +1,4 @@
+#!/bin/python3
 from bpInterpreter import Interpreter
 
 class State:

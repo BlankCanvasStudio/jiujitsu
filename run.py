@@ -1,4 +1,5 @@
-from cli import CLInterpreter
+#!/bin/python3
+from jInterpreter import Interpreter
 
-cli = CLInterpreter()
+cli = Interpreter()
 cli.listen()

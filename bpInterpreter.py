@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/python3
 
 import bashparse, copy, validators
 from bashparse import NodeVisitor
@@ -73,8 +73,8 @@ class InterpreterBase():
         if location is None: location = self.working_dir
         self.fs[location + '/' + name] = File(name=name, contents=contents, permissions=permissions)
 
-    def replace(self, node):
-        return bashparse.replace_variables(node, self.variables)
+    def replace(self, nodes):
+        return bashparse.replace_variables(nodes, self.variables)
 
 
     def interpreter(self, node, vstr):

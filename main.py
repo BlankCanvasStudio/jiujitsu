@@ -1,3 +1,4 @@
+#!/bin/python3
 import bashparse
 from bpInterpreter import Interpreter
 
