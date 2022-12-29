@@ -20,6 +20,9 @@ class Interpreter():
             'UNDO': self.undo,
             'SKIP': self.skip,
             'RUN': self.run,
+            'BUILD': self.build,
+            'STACK': self.stack,
+            'PARSE': self.parse,
             'HISTORY': self.history,
             'STATE': self.state, 
             'ALIAS': self.alias,
@@ -51,6 +54,15 @@ class Interpreter():
                     break
                 func(cmd.flags, *cmd.args)                  # Call the function if it was found
 
+
+    """  """
+    def args_to_str(self, args):
+        text = ''
+        for arg in args:
+            text += arg.value + ' '
+        text = text[:-1]    # last space is wrong plz remove
+        text = text.replace('\\"', '"').replace('\\t', '    ')
+        return text
 
     """ This loads a bash file into the prog_nodes attribute to be iterated through """
     def load(self, flags, *args):
@@ -103,10 +115,7 @@ class Interpreter():
         if self.maintain_history or Flag('h') in flags:
             self.save_state()
 
-        text = ''
-        for arg in args:
-            text += arg.value + ' '
-        text = text[:-1]    # last space is wrong plz remove
+        text = self.args_to_str(args)
         if Flag(value='e') in flags: 
             self.syscall(text)
         
@@ -114,6 +123,38 @@ class Interpreter():
         nodes = bashparse.parse(text)
         for node in nodes:
             self.env.run(node)
+
+
+    """ Builds the action stack for a given command. Useful for debugging the bashparse interpreter """
+    def build(self, flags, *args):
+        # Convert args to command
+        text = self.args_to_str(args)
+
+        print('build text: \n', text)
+
+        append = Flag('a') in flags
+
+        # Build the action stack for the node
+        nodes = bashparse.parse(text)
+        for node in nodes:
+            self.env.build(node, append=append)
+
+
+    """ Prints the action stack of the interpreter """
+    def stack(self, flags, *args):
+        self.env.stack()
+
+
+    """ Nice little parse wrapper """
+    def parse(self, flags, *args):
+        text = ''
+        for arg in args:
+            text += arg.value + ' '
+        text = text[:-1]    # last space is wrong plz remove
+
+        nodes = bashparse.parse(text)
+        for node in nodes:
+            print(node.dump())
 
 
     """ Writes the specified command into an executable file and runs it. 

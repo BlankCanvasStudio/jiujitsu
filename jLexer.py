@@ -159,17 +159,24 @@ class Lexer:
         quote_type = self.current_char
         self.advance()
 
+        """ To verify the quote isn't escaped arbitrarily """
+        def even_slashes():
+            even = True
+            tmp_index = self.index - 1 
+            while self.text[tmp_index] == '\\':
+                even = not even
+            return even
+
         """ Save the text to a variable. Do not stop if \n and make sure \\n doesn't trigger a stop """
         text = ''
-        while (self.current_char != quote_type) or \
-            (self.text[self.index - 1] == '\\' and self.text[index - 2] != '\\'):
+        while (self.current_char != quote_type) and even_slashes():
             """ BUG: YOU NEED TO CHECK IF THE ABOVE IS ODD OR EVEN UNTIL THERE ARE NO MORE SLASHED """
             text += self.current_char
             self.advance()
         self.advance() # Move past the final quote
 
         """ Rasie an error if the quoted argument isn't followed by a space """
-        if not self.current_char.isspace(): raise LexerError("Quoted arguments must be followed by a space")
+        if self.current_char and not self.current_char.isspace(): raise LexerError("Quoted arguments must be followed by a space")
 
         return Token(type_in=TokenType.ARG, value=text)
 
@@ -199,7 +206,7 @@ class Lexer:
 
             if self.current_char == ';':        # Return an End Of Command token if the start of the next token is a ;
                 return self.EOC()
-            
+
             """ Return an argument with the value of : if one is encountered. 
                 Allows for json variable entry with arbitrary spacing """
             if self.current_char == ':':
