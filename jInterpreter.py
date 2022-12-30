@@ -7,6 +7,7 @@ import bpInterpreter, bashparse
 """ Import the Parser and nodes that we created/need to deal with """
 from nodes import Flag, Arg, Command
 from jParser import Parser
+from jRecord import Record
 from bpInterpreter import Interpreter as bpInterpreter
 
 
@@ -19,6 +20,8 @@ class Interpreter():
             'NEXT': self.next, 
             'UNDO': self.undo,
             'SKIP': self.skip,
+            'SAVE': self.save,
+            'INCH': self.inch,
             'RUN': self.run,
             'BUILD': self.build,
             'STACK': self.stack,
@@ -36,7 +39,7 @@ class Interpreter():
         self.maintain_history = maintain_history
         self.parser = Parser('pass')
         self.env = bpInterpreter()
-        self.history_stack = [ self.env ]
+        self.history_stack = [ Record(env=self.env, name='init') ]
 
 
     """ How to CLI is actually called in python """
@@ -55,7 +58,7 @@ class Interpreter():
                 func(cmd.flags, *cmd.args)                  # Call the function if it was found
 
 
-    """  """
+    """ Converts arguments to strings. A necessary wrapper cause escape characters """
     def args_to_str(self, args):
         text = ''
         for arg in args:
@@ -64,6 +67,7 @@ class Interpreter():
         text = text.replace('\\"', '"').replace('\\t', '    ')
         return text
 
+
     """ This loads a bash file into the prog_nodes attribute to be iterated through """
     def load(self, flags, *args):
         filename = args[0].value
@@ -71,7 +75,7 @@ class Interpreter():
         self.index = 0
 
 
-    """ Executes the next command in the node list """
+    """ Executes the next command in the node list. -e means the command should execute in surrounding env """
     def next(self, flags, *args):
         def get_next_node():
             if self.prog_nodes is None or len(self.prog_nodes) == 0: return None
@@ -81,13 +85,18 @@ class Interpreter():
             return node
 
         node = self.get_next_node()                         # Get the next node
+        node_str = str(bashparse.NodeVisitor(node))
         if Flag('e') in flags: 
-            self.syscall(str(bashparse.NodeVisitor(node)))  # Convert to str then syscall
+            self.syscall(node_str)  # Convert to str then syscall
 
         """ All -e nodes need to be executed in environment so you can switch between them without issue """
         if self.maintain_history or Flag('h') in flags:
-            self.save_state()
-        self.env.run(node)
+            self.save_state(action = node_str)
+        
+        if Flag('i') in flags:  # i flag means you want to inch it
+            self.env.build(node, append = False)
+        else:
+            self.env.run(node)
 
         """ Print the state cause its nice """
         self.state()
@@ -96,12 +105,12 @@ class Interpreter():
     """ Undoes any action taken in the environment. Can't undo if it exited the env though """
     def undo(self, flags, *args):
         if len(self.history_stack) > 1:                     # Roll back if possible
-            self.env = self.history_stack[-1]
+            self.env = self.history_stack[-1].env
             self.history_stack = self.history_stack[:-1]
             self.index  = self.index - 1
         else:                                               # If not the re-create from the ground up
             self.env = bpInterpreter.Interpreter()
-            self.history_stack = [ self.env ]
+            self.history_stack = [ Record(env=self.env, name='init') ]
 
 
     """ Move passed a node if the user doesn't care about it """
@@ -109,15 +118,40 @@ class Interpreter():
         self.index = self.index + 1
 
 
-    """ Run a user input command by combining the args into a command and executing it. 
-        All commands must also be run in env to maintain consistency """
-    def run(self, flags, *args):
-        if self.maintain_history or Flag('h') in flags:
-            self.save_state()
+    """ Allows the user to create custom points in the history """
+    def save(self, flags, *args):
+        if not len(args):
+            print("Must specify a name for your save point.")
+            print("Nothing was saved")
+            return 
 
+        name = self.args_to_str(args)
+        action = 'User Save'
+        self.save_state(name=name, action=action)
+
+
+    """  """
+    def inch(self, flags, *args):
+        res = self.env.inch()
+        if not res:
+            print("Action Stack is empty. Please run next/run -i to load the action stack")
+
+
+    """ Run a user input command by combining the args into a command and executing it. 
+        All commands must also be run in env to maintain consistency. -i is a wrapper for build """
+    def run(self, flags, *args):
         text = self.args_to_str(args)
+
+        if self.maintain_history or Flag('h') in flags:
+            self.save_state(action = text)
+
         if Flag(value='e') in flags: 
             self.syscall(text)
+        
+        """ Adding -i is going to be a wrapper for build so it mirrors 'next' nicely """
+        if Flag(value='i') in flags:
+            self.build([], *args)
+            return
         
         """ Even escaped commands must be run in env to maintain consistency when switching """
         nodes = bashparse.parse(text)
@@ -130,14 +164,10 @@ class Interpreter():
         # Convert args to command
         text = self.args_to_str(args)
 
-        print('build text: \n', text)
-
-        append = Flag('a') in flags
-
         # Build the action stack for the node
         nodes = bashparse.parse(text)
         for node in nodes:
-            self.env.build(node, append=append)
+            self.env.build(node, append= Flag('a') in flags)
 
 
     """ Prints the action stack of the interpreter """
@@ -254,10 +284,12 @@ class Interpreter():
 
     """ How the judo interpreter handles history. Creates a new bpInterpreter with a copy of the
         old state so it can be updated. Could move the history maintanace to the bpInterpreter instead """
-    def save_state(self):
+    def save_state(self, name = None, action = None):
+        if name is None: name = str(len(self.history_stack))
         new_env = copy.deepcopy(self.env)
-        self.history_stack += [ self.env ]
+        self.history_stack += [ Record(env=new_env, name=name, action=action) ]
         self.env = new_env
+        
     
 
     """ Implementation of the history command. Prints the history if -p is passed in.
@@ -265,10 +297,8 @@ class Interpreter():
     def history(self, flags, *args):
         if Flag('p') in flags or len(flags) == 0:
             if len(self.history_stack):
-                print("History")
-                for i, time_step in enumerate(self.history_stack):
-                    print('Level ', i, ': ')
-                    time_step.showState(showFiles = False)
+                print('\n' + "History" + '\n')
+                for record in self.history_stack: record.print(showFiles = False)
             else:
                 print("No History yet")
         if Arg('on') in args:
