@@ -1,5 +1,5 @@
 #!/bin/python3
-from tokens import Token, TokenType
+from jToken import Token, TokenType
 
 
 class LexerError(Exception):

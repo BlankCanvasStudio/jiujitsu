@@ -5,7 +5,7 @@ import bpInterpreter, bashparse
 
 
 """ Import the Parser and nodes that we created/need to deal with """
-from nodes import Flag, Arg, Command
+from jNode import Flag, Arg, Command
 from jParser import Parser
 from jRecord import Record
 from bpInterpreter import Interpreter as bpInterpreter

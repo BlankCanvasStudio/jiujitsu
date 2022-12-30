@@ -1,5 +1,5 @@
 #!/bin/python3
-from tokens import TokenType
+from jToken import TokenType
 from jLexer import Lexer
 from nodes import AST, Flag, Arg, Command, Program
 
