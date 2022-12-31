@@ -1,7 +1,6 @@
 #!/bin/python3
-from bpFileSystem import FileSocket
+from bpFileSystem import FileSocket, File
 from bpInterpreterBase import InterpreterBase
-from bpFile import File
 import validators
 
 

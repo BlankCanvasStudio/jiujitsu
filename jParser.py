@@ -1,7 +1,7 @@
 #!/bin/python3
 from jToken import TokenType
 from jLexer import Lexer
-from nodes import AST, Flag, Arg, Command, Program
+from jNode import AST, Flag, Arg, Command, Program
 
 
 """ 

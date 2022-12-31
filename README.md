@@ -27,13 +27,13 @@ Takes a single argument of a bash file you wish to step through. Loading the fil
 
 ## NEXT
 
-Runs the next line of the bash file which you previously loaded. Using the -e flag WILL RUN THE COMMAND ON THE HOST SYSTEM WITHOUT PROTECTION (it will replace it as much as possble). 
+Runs the next line of the bash file which you previously loaded. Using the -e flag WILL RUN THE COMMAND ON THE HOST SYSTEM WITHOUT PROTECTION (it will replace it as much as possble). Using the -i flag will allow the user call 'inch' (see below) to step through the command in detail.
 
 <br/>
 
 ## UNDO
 
-This completely undoes the effects of the previous command. This also makes it so running 'next' again will rerun the command. 
+Reversts the interpreter to the last saved state (either user defined to at the end of the most recent run or next command). This destroys the current environment state so you must re-run the commands to get back to that point.
 
 <br/>
 
@@ -43,9 +43,40 @@ This allows the user to skip a command in the bash file without running it
 
 <br/>
 
+## SAVE
+
+This allows users to create their own named save points in the history. The name is specified in the args and can be space separated.
+
+<br/>
+
+
+## BUILD
+
+This allows users to create the action stack (ie what actions the bashparse interpreter should take) without actually executing them. Calling inch until the action stack is empty will yeild the same results as running the command using 'run'
+
+<br/>
+
+## INCH
+
+This executes a single entry off the action stack. It allows the user a fine grained control over the execution of a bash script and allows for detailed modification of the runtime environment.
+
+<br/>
+
 ## RUN
 
-This allows the user to run bash commands directly from the CLI. The entire command should be specified in the arguments. Using the -e flag WILL RUN THE COMMAND ON THE HOST SYSTEM WITHOUT PROTECTION (it will replace it as much as possble).
+This allows the user to run bash commands directly from the CLI. The entire command should be specified in the arguments. Using the -e flag WILL RUN THE COMMAND ON THE HOST SYSTEM WITHOUT PROTECTION (it will replace it as much as possble). The -i flag will alias to the 'build' command.
+
+<br/>
+
+## STACK
+
+This prints the current action of the bash interpreter
+
+<br/>
+
+## PARSE
+
+This will print the bash AST for whatever command is specified in the arguments.
 
 <br/>
 

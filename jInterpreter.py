@@ -21,9 +21,9 @@ class Interpreter():
             'UNDO': self.undo,
             'SKIP': self.skip,
             'SAVE': self.save,
+            'BUILD': self.build,
             'INCH': self.inch,
             'RUN': self.run,
-            'BUILD': self.build,
             'STACK': self.stack,
             'PARSE': self.parse,
             'HISTORY': self.history,
@@ -269,7 +269,9 @@ class Interpreter():
         
         """ Handle -p flag """
         if Flag('p') in flags or len(flags) == 0:
+            print()
             self.env.showState()
+            print()
 
 
     """ Nicely exits the CLI """
