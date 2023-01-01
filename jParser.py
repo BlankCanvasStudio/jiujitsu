@@ -36,6 +36,11 @@ class Parser:
         self.current_token = self.get_next_token()
 
 
+    """ Used to convert the alias table to JSON file so it can be loaded later """
+    def json(self):
+        return self.lexer.json()
+
+
     """ Reset the lexer to the new line. Then you can call parse on it """
     def new(self, text):
         self.__init__(text)

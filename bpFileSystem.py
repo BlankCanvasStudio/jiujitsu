@@ -8,16 +8,19 @@ class File:
         print('FileName: ', self.name)
         print('  Permissions: ', self.permissions)
         print('  Contents: ', self.contents)
-    
+
     def setPermissions(self, permissions):
         self.permissions = permissions
+    
+    def json(self):
+        return { 'name':str(self.name), 'contents':str(self.contents), 'permissions':str(self.permissions) }
 
 
 class FileSocket:
-    def __init__(self, id_num, working_dir = '~'):
-        self.OUT = ''
+    def __init__(self, id_num, IN = '', OUT = ''):
+        self.OUT = OUT
         self.id = id_num
-        self.IN = ''
+        self.IN = IN
 
     def write(self, text_in):
         self.OUT += text_in 
@@ -33,3 +36,10 @@ class FileSocket:
     
     def peek(self):
         return self.IN
+    
+    def json(self):
+        return {
+            "IN": self.IN, 
+            "OUT": self.OUT, 
+            "id_num": self.id,
+        }

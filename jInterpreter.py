@@ -1,6 +1,6 @@
 #!/bin/python3
 """ Bringing the death star to a knife fight """
-import subprocess, os, stat, copy
+import subprocess, os, stat, copy, json
 import bpInterpreter, bashparse
 
 
@@ -25,12 +25,18 @@ class Interpreter():
             'INCH': self.inch,
             'RUN': self.run,
             'STACK': self.stack,
+            'DIR': self.dir,
+            'STDIN': self.stdin,
+            'STDOUT': self.stdout,
+            'VAR': self.var,
+            'FS': self.fs,
             'PARSE': self.parse,
             'HISTORY': self.history,
             'STATE': self.state, 
             'ALIAS': self.alias,
             'PASS': self.void,
             'VOID': self.void,
+            'JSON':self.json,
             'EXIT': self.exit,
         }
         self.prog_nodes = None
@@ -134,7 +140,7 @@ class Interpreter():
     def inch(self, flags, *args):
         res = self.env.inch()
         if not res:
-            print("Action Stack is empty. Please run next/run -i to load the action stack")
+            print("Action Stack is empty. Please run build or next/run -i to load the action stack")
 
 
     """ Run a user input command by combining the args into a command and executing it. 
@@ -204,80 +210,114 @@ class Interpreter():
         print('Error: \n', str(result.stderr))
 
 
+    """ Deals with the printing and modificaiton of the interpreters working directory """
+    def dir(self, flags, *args):
+        """
+        if len(args) != 1:
+            print('Invalid Number of arguments to dir. Nothing was changed')
+            return
+        """
+        if len(args):
+            self.env.working_dir(args[0].value)
+        print('Working dir: ', self.env.working_dir())
+
+
+    """ For maintaining the STDIN for the current env """
+    def stdin(self, flags, *args):
+        arg_text = self.args_to_str(args)
+        if len(args):
+            self.env.stdin(arg_text)
+        print("STD IN: " + self.env.stdin())
+    
+
+    """ For maintaining the STDOUT for the current env """
+    def stdout(self, flags, *args):
+        arg_text = self.args_to_str(args)
+        if len(args):
+            self.env.stdout(arg_text)
+        print("STD OUT: " + self.env.stdout())
+    
+
+    """ For maintaining the variables in the current env """
+    def var(self, flags, *args):
+        if len(args):
+            """ Save the name:value combo from args until args is empty """
+            while len(args) >= 3 and args[1] == Arg(':'):    # Man I hate this implementation
+                self.env.set_variable(args[0].value, args[2].value) # Name:Value
+                args = args[3:] if len(args) > 3 else []
+        if Flag('p') in flags:
+            self.env.print_variables()
+
+
+    def fs(self, flags, *args):
+        if Flag('s') in flags:
+            working_args = list(args)
+            """ Strip out name:contents and name:contents:permissions, then save to env """
+            while len(working_args):
+                """ Strip the filename """
+                file_name = working_args.pop(0).value
+                if working_args[0] != Arg(':'): 
+                    print('Invalid file formation for state -s fs')
+                    return
+                
+                """ Remove : """
+                working_args.pop(0)
+                
+                """ Get the file contents """
+                if not len(working_args): print('Invalid file formation for fs -s. File contents needed')
+                file_contents = working_args.pop(0).value
+                
+                """ Get optional file permissions if next arg is : """
+                if len(working_args) > 2 and working_args[0] == Arg(':'):
+                    working_args.pop(0)
+                    file_permissions = working_args.pop(0).value
+                else:
+                    file_permissions = 'rw-rw-rw-'
+                
+                """ Update the file system """
+                self.env.update_file_system(name=file_name, contents=file_contents, permissions=file_permissions)
+        
+        if Flag('p') in flags:
+            self.env.print_filesystem()
+
+
     """ Implementation of the state function. Prints if the -p flag is passed in """
     def state(self, flags, *args):
-        """ Handle -s flag """
-        if Flag('s') in flags:  # This means they want to set something in the file system
-            if len(args) == 0:
-                pass
-
-            elif Arg('var') == args[0]: #  Save a variable 
-                var_values = args[1:]   # Remove Arg{var}
-                """ Save the name:value combo from var_values until var_values is empty """
-                while len(var_values) >= 3 and var_values[1] == Arg(':'):    # Man I hate this implementation
-                    self.env.set_variable(var_values[0].value, var_values[2].value) # Name:Value
-                    var_values = var_values[3:] if len(var_values) > 3 else []
-            
-            elif Arg('fs') == args[0]:  # Save something to the file system
-                working_args = args[1:]
-                """ Strip out name:contents and name:contents:permissions, then save to env """
-                while len(working_args):
-                    """ Strip the filename """
-                    file_name = working_args.pop(0).value
-                    if working_args[0] != Arg(':'): 
-                        print('Invalid file formation for state -s fs')
-                        return
-                   
-                    """ Remove : """
-                    working_args.pop(0)
-                    
-                    """ Get the file contents """
-                    if not len(working_args): print('Invalid file formation for state -s fs. File contents needed')
-                    file_contents = working_args.pop(0).value
-                    
-                    """ Get optional file permissions if next arg is : """
-                    if working_args[0] == Arg(':') and len(working_args) > 2:
-                        working_args.pop(0)
-                        file_permissions = working_args.pop(0).value
-                    else:
-                        file_permissions = 'rw-rw-rw-'
-                    
-                    """ Update the file system """
-                    self.env.update_file_system(nam=file_name, contents=file_contents, permissions=file_permissions)
-
-            elif Arg('dir') == args[0]:     # Set the working directory
-                if len(args) > 2:
-                    print('Invalid Number of arguments to state dir')
-                else:
-                    self.env.working_dir = str(args[1].value)
-            
-            elif Arg('stdin') == args[0]:   # Set STDIN via the env
-                arg_text = ''
-                for arg in args[1:]:
-                    arg_text += str(arg.value)
-                self.env.STDIO.write(arg_text)
-
-            elif Arg('stdout') == args[0]:  # Set STDOUT via the env 
-                arg_text = ''
-                for arg in args[1:]:
-                    arg_text += str(arg.value)
-                self.env.STDIO.write(arg_text)
-                self.end.transfer()
-            
-            else:                           # Pop an error if nothing happened
-                print('Unkown argument: ' + str(args[0]) + ' passed to stateto state')
-        
-        """ Handle -p flag """
-        if Flag('p') in flags or len(flags) == 0:
-            print()
-            self.env.showState()
-            print()
+        print()
+        self.env.showState()
+        print()
 
 
     """ Nicely exits the CLI """
-    def exit(self, flags):
+    def exit(self, flags, *args):
         self.listening = False
+    
 
+    """ Imports / Exports the state to a JSON file """
+    def json(self, flags, *args):
+        filename = self.args_to_str(args)
+        filename = filename if filename[-5:] == '.json' else filename + '.json'
+        
+        if len(args) != 1: 
+            print("Wrong # of arguments. 1 filename must be specified")
+            return
+        if Flag('i') in flags:  # Import
+            data = json.load(open(filename))
+            self.maintain_history = data['maintain_history'] == 't'
+            self.history_stack = [ Record(**x) for x in data['history'] ]
+            self.env = self.history_stack[-1].env
+            for name, func in data['aliases'].items(): self.parser.lexer.add_alias(name, func)
+
+        elif Flag('e') in flags:
+            history_array = [ x.json() for x in self.history_stack ]
+            pre_json = { **{ "history":history_array }, **{"aliases":self.parser.json()},
+                **{ "maintain_history": 't' if self.maintain_history else 'f' }
+                 }
+            
+            fd = open(filename, "w")
+            json.dump(pre_json, fd, indent=4)
+        else:
+            print('Please specify -i or -e')
 
     """ A simple function to not execute anything. Might be unnecessary but it exists """
     def void(self, flags, *args):

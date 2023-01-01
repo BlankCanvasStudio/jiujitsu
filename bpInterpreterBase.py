@@ -7,12 +7,12 @@ import copy, bashparse
 class InterpreterBase():
 
     def __init__(self, STDIO = FileSocket(id_num = 0), working_dir = '~', variables = {}, 
-                    fs = {}, open_sockets = [], truths = {}):
-        
+                    fs = {}, open_sockets = [], truths = {}, execute = True):
+
         """ Where all the state info in help. Manipulated to allow for time travel """
         self.state = State(STDIO=STDIO, working_dir=working_dir, variables=variables, 
                             fs=fs, open_sockets=open_sockets, truths=truths)
-        
+
 
         """ When traversing the AST we build an 'action stack' which holds all the actions 
             that need to be executed on the state in the order they should operate. 
@@ -32,12 +32,24 @@ class InterpreterBase():
                 self.bin += [ method[2:] ]
 
 
-        self.execute = True
+        if type(execute) is str: execute = execute == 't'   # Used when loading from json
+        self.execute = execute
 
 
     """ Used in Action Queues """
     def emptyFunc():
         pass
+
+
+    """  """
+    def json(self):
+        return {**self.state.json(), **{ "execute": 't' if self.execute else 'f' }}
+    
+
+    """ Set the working directory """
+    def working_dir(self, working_dir = None):
+        if working_dir is not None: self.state.working_dir = str(working_dir)
+        return self.state.working_dir
 
 
     """ Legacy wrappers. Will be removed eventually """
@@ -68,6 +80,19 @@ class InterpreterBase():
     def set_variable(self, name, value):
         self.state.set_variable(name, value)
 
+    def print_variables(self):
+        self.state.showVariables()
+    
+    def print_filesystem(self):
+        self.state.showFileSystem()
+    
+    def stdin(self, IN = None):
+        if IN is not None: self.state.STDIO.IN = IN
+        return self.state.STDIO.IN
+
+    def stdout(self, IN = None):
+        if IN is not None: self.state.STDIO.OUT = IN
+        return self.state.STDIO.OUT
 
     """ The following section is everything necessary to actually run the interpreter """
 

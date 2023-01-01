@@ -37,6 +37,17 @@ class Lexer:
         self.alias_table = alias_table
     
 
+    """  """
+    def json(self, json = None):
+        if json is None: 
+            json_alias_table = {}
+            for key, value in self.alias_table.items():
+                json_alias_table[key] = ' '.join([x.value for x in self.alias_table[key]])
+            return json_alias_table
+        # Loading from the JSON
+        self.alias_table = json
+
+
     """ Called whenever you want to lex new text. Easier than making a new lexer every time 
         (cause then you have to also mess with parser) """
     def new(self, text):
@@ -146,7 +157,7 @@ class Lexer:
         Can be anything but it can't contain spaces. Words are considered separate arguments, as long as its not quoted """
     def ARG(self):
         text = ''
-        while (self.current_char is not None) and (not self.current_char.isspace()):
+        while (self.current_char is not None) and (not self.current_char.isspace()) and (not self.current_char == ':'):
             text += self.current_char
             self.advance()
         return Token(type_in=TokenType.ARG, value=text)
@@ -175,8 +186,10 @@ class Lexer:
             self.advance()
         self.advance() # Move past the final quote
 
-        """ Rasie an error if the quoted argument isn't followed by a space """
-        if self.current_char and not self.current_char.isspace(): raise LexerError("Quoted arguments must be followed by a space")
+        """ Rasie an error if the quoted argument isn't followed by a space or a colon """
+        if self.current_char and (not self.current_char.isspace() and not self.current_char == ':'): 
+            print('current char: ', self.current_char)
+            raise LexerError("Quoted arguments must be followed by a space or colon")
 
         return Token(type_in=TokenType.ARG, value=text)
 
