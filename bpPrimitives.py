@@ -38,11 +38,11 @@ class State:
 
     """ Print functionality for CLI (and I guess other purposes) """
     def show(self, showFiles = False):
-        print('Working directory: ', self.working_dir, '\n')
+        print('Working directory: ', repr(self.working_dir), '\n')
         self.showVariables()
         print('Number of open sockets: ', len(self.open_sockets), '\n')
-        print('Standard IN: ', self.STDIO.IN, '\n')
-        print('Standard OUT: ', self.STDIO.OUT, '\n')
+        print('Standard IN: ', repr(self.STDIO.IN), '\n')
+        print('Standard OUT: ', repr(self.STDIO.OUT), '\n')
         self.showFileSystem(showFiles=showFiles)
 
 

@@ -19,6 +19,8 @@ class Lexer:
     """
 
     def __init__(self, text, alias_table = {}):
+        """ I actively hate this so much but python won't give me the raw string. So irritating """
+        # self.text = text.replace('\\', '\\\\').replace("\"", "\\\"").replace('\'', '\\\'').replace('\n', '\\n').replace('\t', '\\t')
         self.text = text
         self.index = 0
         self.token_index = 0
@@ -37,25 +39,7 @@ class Lexer:
         self.alias_table = alias_table
 
 
-    """ Returns the current character in the sequence and deals with escape characters """
-    def current_char(self, raw = False):
-        if self.index > len(self.text) - 1: return None
-        if self.text[self.index] != '\\' or raw: return self.text[self.index]
-        # Now it must be an escaped character so return the actual escaped character in its place
-        escaped_char = self.text[self.index + 1]
-        if escaped_char == '"':
-            return '"'
-        elif escaped_char == "'":
-            return "'"
-        elif escaped_char == 'n':
-            return '\n'
-        elif escaped_char == 't':
-            return '\t'
-        elif escaped_char == '\\':
-            return '\\'
-
-
-    """  """
+    """ Converts object to dict so it can be converted to json. __dict__ attr introduced a bug so we use this"""
     def json(self):
         json_alias_table = {}
         for key, value in self.alias_table.items():
@@ -66,7 +50,29 @@ class Lexer:
     """ Called whenever you want to lex new text. Easier than making a new lexer every time 
         (cause then you have to also mess with parser) """
     def new(self, text):
+        if type(text) is not str: raise LexerError('Lexer.new() can only take string type argument')
         self.__init__(text, self.alias_table)
+
+
+    """ Returns the current character in the sequence and deals with escape characters """
+    def current_char(self, raw = False):
+        if type(raw) is not bool: raise LexerError("Argument raw to Lexer.current_char() must be a bool")
+        if self.index > len(self.text) - 1: return None
+        if self.text[self.index] != '\\' or raw: return self.text[self.index]
+        # Now it must be an escaped character so return the actual escaped character in its place
+        escaped_char = self.text[self.index + 1]
+        if escaped_char == '"':
+            return "\""
+        elif escaped_char == "'":
+            return "\'"
+        elif escaped_char == 'n':
+            return '\n'
+        elif escaped_char == 't':
+            return '\t'
+        elif escaped_char == '\\':
+            return '\\'
+        else:
+            raise LexerError('Unsupported escape character encountered: ' + '\\' + escaped_char)
 
 
     """ Increase read pointer in string or set to None when done """
@@ -75,36 +81,20 @@ class Lexer:
         self.index = self.index + 1
 
 
-    def peek(self):
-        if self.index > len(self.text) - 1:
-            return None
-        else:
-            return self.text[self.index]
-
-
     """ Lexer allows for random whitespace so formatting can look nice """
     def skip_whitespace(self):
-        while self.current_char() is not None and self.current_char().isspace():
+        while self.current_char() and self.current_char().isspace():
             self.advance()
 
 
     """ How the lexer deals with inline comments:
             Skips until end of line. Assumes that every line is read individually """
     def skip_comment(self):
-        while self.current_char() is not None and self.current_char() != '\n':
+        while self.current_char() and self.current_char() != '\n':
             self.advance()
         if self.current_char() == '\n': # Skip \n so we start at next line ?
             self.advance()
-
-    """ Checks if string passed in is in alias table. If it is, the tokens of 
-        the lexed alias string are shifted onto the front of the tokens array stack to be removed.
-        Theoretically the command being aliased is on front of token array so it should be shifted off. """
-    def resolve_alias(self, alias):
-        if self.is_alias(alias):   # ideally the token is on the front of the array so alias needs to be preappended ?
-            self.token_array = self.alias_table[alias] + self.token_array
-            return self.token_array.pop(0)
-        else:
-            raise LexerError('Error Occured in Lexer.resolve_alias. Alias passed in not in alias table.')
+            self.first_word = True      # New line = new command
 
 
     """ Simple wrapper in the event things get more complex """
@@ -118,8 +108,8 @@ class Lexer:
         Saves the resulting tokens in alias_table so we don't need to process them everytime """
     def add_alias(self, name, cmd_aliased):
 
-        if type(cmd_aliased) is not str: raise LexerError("Error occured in Lexer.add_alias. Function to alias must be passed in as string")
         if type(name) is not str: raise LexerError("Error occured in Lexer.add_alias. Alias name must be a string")
+        if type(cmd_aliased) is not str: raise LexerError("Error occured in Lexer.add_alias. Function to alias must be passed in as string")
 
         """ Create a temporary lexer with the same alias table to resolve the tokens. 
             This should allow for nested aliasing as it will reduce the aliasing when creating the tokens """
@@ -127,10 +117,22 @@ class Lexer:
 
         """ Convert to tokens and save """
         tokens = []
-        while tmp_lexer.peek() is not None:
+        while tmp_lexer.current_char() is not None:
             tokens += [ tmp_lexer.get_next_token() ]
 
         self.alias_table[name] = tokens
+
+
+    """ Checks if string passed in is in alias table. If it is, the tokens of 
+        the lexed alias string are shifted onto the front of the tokens array stack to be removed.
+        Theoretically the command being aliased is on front of token array so it should be shifted off. """
+    def resolve_alias(self, alias):
+        if type(alias) is not str: raise LexerError("Error Lexer.resolve_alias takes a single string type argument")
+        if self.is_alias(alias):   # ideally the token is on the front of the array so alias needs to be preappended ?
+            self.token_array = self.alias_table[alias] + self.token_array
+            return self.token_array.pop(0)
+        else:
+            raise LexerError('Error Occured in Lexer.resolve_alias. Alias passed in not in alias table.')
 
 
     """ How the lexer converts the optional flag section into tokens. 
@@ -139,7 +141,7 @@ class Lexer:
     def flags(self):
         self.advance() # shift off the -
 
-        while self.current_char() is not None and not self.current_char().isspace():
+        while self.current_char() and not self.current_char().isspace() and (not self.current_char() == ';'):
             self.token_array += [ Token(type_in=TokenType.FLAG, value=self.current_char()) ]
             self.advance()
 
@@ -156,7 +158,7 @@ class Lexer:
     """ First word of command is parsed. A command can be anything but can't contain spaces. """
     def CMD(self):
         text = ''
-        while self.current_char() is not None and not self.current_char().isspace():
+        while self.current_char() is not None and not self.current_char().isspace() and (not self.current_char() == ';'):
             text += self.current_char()
             self.advance()
         self.first_word = False
@@ -167,7 +169,7 @@ class Lexer:
         Can be anything but it can't contain spaces. Words are considered separate arguments, as long as its not quoted """
     def ARG(self):
         text = ''
-        while (self.current_char() is not None) and (not self.current_char().isspace()) and (not self.current_char() == ':'):
+        while (self.current_char() is not None) and (not self.current_char().isspace()) and (not self.current_char() == ':') and (not self.current_char() == ';'):
             text += self.current_char()
             self.advance()
         return Token(type_in=TokenType.ARG, value=text)
@@ -204,7 +206,7 @@ class Lexer:
 
         """ Determine the token from the text """
         while self.current_char() is not None:
-            
+
             if self.current_char().isspace():     # Skip white space until we get to next real token. Not raw so \n and \t pop
                 self.skip_whitespace()
                 continue
@@ -238,3 +240,9 @@ class Lexer:
             self.token_index = self.token_index + 1                     # Keep count of the number of tokens processed. Legacy but kept anyway
 
         return Token(type_in=TokenType.EOF, value=None)                 # If its out of the while loop then its the EOF
+
+    def get_all_tokens(self):
+        tokens = [ self.get_next_token() ]
+        while tokens[-1] != Token(type_in=TokenType.EOF, value=None):
+            tokens += [ self.get_next_token() ]
+        return tokens

@@ -267,7 +267,7 @@ class InterpreterBase():
                 elif resp == 'y':
                     pass
 
-                action = ActionEntry(func=seld.emptyFunc, text='Unknown command: ' + command.word + '. Passing')
+                action = ActionEntry(func=self.emptyFunc, text='Unknown command: ' + command.word + '. Passing')
                 
                 self.action_stack += [ action ]
 

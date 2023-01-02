@@ -52,7 +52,7 @@ class Interpreter():
     def listen(self):
         print('Welcome to the Judo shell')
         while self.listening:
-            cmd = input('> ')                   # Get the text from the user
+            cmd = input(r'> ')                  # Get the text from the user
             prog = self.parser.parse(cmd)       # Parse the nodes and get the ast
             for cmd in prog.commands:           # Iterate over command nodes in the ast and execute them
                 try:
