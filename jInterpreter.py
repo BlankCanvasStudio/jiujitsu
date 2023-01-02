@@ -98,7 +98,7 @@ class Interpreter():
         """ All -e nodes need to be executed in environment so you can switch between them without issue """
         if self.maintain_history or Flag('h') in flags:
             self.save_state(action = node_str)
-        
+
         if Flag('i') in flags:  # i flag means you want to inch it
             self.env.build(node, append = False)
         else:
@@ -212,13 +212,9 @@ class Interpreter():
 
     """ Deals with the printing and modificaiton of the interpreters working directory """
     def dir(self, flags, *args):
-        """
-        if len(args) != 1:
-            print('Invalid Number of arguments to dir. Nothing was changed')
-            return
-        """
-        if len(args):
+        if len(args) == 1:
             self.env.working_dir(args[0].value)
+        else : print("Invalid number of arguments passed into DIR. Nothing changed")
         print('Working dir: ', self.env.working_dir())
 
 
@@ -228,7 +224,7 @@ class Interpreter():
         if len(args):
             self.env.stdin(arg_text)
         print("STD IN: " + self.env.stdin())
-    
+
 
     """ For maintaining the STDOUT for the current env """
     def stdout(self, flags, *args):
@@ -236,7 +232,7 @@ class Interpreter():
         if len(args):
             self.env.stdout(arg_text)
         print("STD OUT: " + self.env.stdout())
-    
+
 
     """ For maintaining the variables in the current env """
     def var(self, flags, *args):
@@ -250,35 +246,33 @@ class Interpreter():
 
 
     def fs(self, flags, *args):
-        if Flag('s') in flags:
-            working_args = list(args)
-            """ Strip out name:contents and name:contents:permissions, then save to env """
-            while len(working_args):
-                """ Strip the filename """
-                file_name = working_args.pop(0).value
-                if working_args[0] != Arg(':'): 
-                    print('Invalid file formation for state -s fs')
-                    return
-                
-                """ Remove : """
-                working_args.pop(0)
-                
-                """ Get the file contents """
-                if not len(working_args): print('Invalid file formation for fs -s. File contents needed')
-                file_contents = working_args.pop(0).value
-                
-                """ Get optional file permissions if next arg is : """
-                if len(working_args) > 2 and working_args[0] == Arg(':'):
-                    working_args.pop(0)
-                    file_permissions = working_args.pop(0).value
-                else:
-                    file_permissions = 'rw-rw-rw-'
-                
-                """ Update the file system """
-                self.env.update_file_system(name=file_name, contents=file_contents, permissions=file_permissions)
+
+        working_args = list(args)
+        """ Strip out name:contents and name:contents:permissions, then save to env """
+        while len(working_args):
+            """ Strip the filename """
+            file_name = working_args.pop(0).value
+
+            """ Strip the : """
+            if working_args.pop(0) != Arg(':'): 
+                print('Invalid file formation. Please follow pattern: name:contents:permissions')
+                return
+
+            """ Get the file contents """
+            if not len(working_args): print('Invalid file formation. File contents needed')
+            file_contents = working_args.pop(0).value
+            
+            """ Get optional file permissions if next arg is : """
+            if len(working_args) > 2 and working_args.pop(0) == Arg(':'):
+                file_permissions = working_args.pop(0).value
+            else:
+                file_permissions = 'rw-rw-rw-'
+
+            """ Update the file system """
+            self.env.update_file_system(name=file_name, contents=file_contents, permissions=file_permissions)
         
         if Flag('p') in flags:
-            self.env.print_filesystem()
+            self.env.print_filesystem(showFiles=True)
 
 
     """ Implementation of the state function. Prints if the -p flag is passed in """
@@ -308,7 +302,7 @@ class Interpreter():
             self.env = self.history_stack[-1].env
             for name, func in data['aliases'].items(): self.parser.lexer.add_alias(name, func)
 
-        elif Flag('e') in flags:
+        elif Flag('e') in flags: # Export
             history_array = [ x.json() for x in self.history_stack ]
             pre_json = { **{ "history":history_array }, **{"aliases":self.parser.json()},
                 **{ "maintain_history": 't' if self.maintain_history else 'f' }
@@ -355,6 +349,10 @@ class Interpreter():
         the lexer so it will sub the command with the string passed in in the args. Last arg is the 
         name of the alias """
     def alias(self, flags, *args):
+        if Flag('p') in flags:
+            for el in args:
+                print(el.value, ': ', self.parser.lexer.json()[el.value])
+            return
         alias = args[-1].value
         cmd_aliased = ' '.join( [ str(arg.value) for arg in args[:-1] ] ) # convert args to string
         self.parser.lexer.add_alias(alias, cmd_aliased)

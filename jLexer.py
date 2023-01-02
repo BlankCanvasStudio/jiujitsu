@@ -38,14 +38,11 @@ class Lexer:
     
 
     """  """
-    def json(self, json = None):
-        if json is None: 
-            json_alias_table = {}
-            for key, value in self.alias_table.items():
-                json_alias_table[key] = ' '.join([x.value for x in self.alias_table[key]])
-            return json_alias_table
-        # Loading from the JSON
-        self.alias_table = json
+    def json(self):
+        json_alias_table = {}
+        for key, value in self.alias_table.items():
+            json_alias_table[key] = ' '.join([x.value for x in self.alias_table[key]])
+        return json_alias_table
 
 
     """ Called whenever you want to lex new text. Easier than making a new lexer every time 

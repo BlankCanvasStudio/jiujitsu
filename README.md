@@ -74,6 +74,50 @@ This prints the current action of the bash interpreter
 
 <br/>
 
+## DIR 
+
+This command will set the working directory to the first argument passed in and will pop and error if more are passed in. If no directory is specified in the arguments then the current working directory is printed and nothing is changed. 
+
+</br>
+
+## STDIN 
+
+This can be used to set the STDIN value. It will concatenate all arguments passed in to a single string.
+
+</br>
+
+## STDOUT 
+
+This can be used to set the STDOUT value. It will concatenate all arguments passed in to a single string.
+
+</br>
+
+## VAR 
+
+This command can be used to list and update variables in the environment. Creating / Updating variables can be dont as follows:
+
+    var name1:value1 "name2":"value2"
+
+And printing the current environment variables can be done by simply adding the -p flag:
+
+    var -p
+
+</br>
+
+## FS 
+
+This is used to maintain the file system. Files can be added to the file system using:
+
+    fs name:contents:permissions
+
+Permissions are optional and should use the form rw-rw-rw- (this is also the default permissions for a file). If no arguments are passed into the function, nothing happens
+
+The file system can be printed by adding the -p flag to the command
+
+    fs -p
+
+</br>
+
 ## PARSE
 
 This will print the bash AST for whatever command is specified in the arguments.
@@ -88,32 +132,7 @@ This allows the user to print the history and modify if its collected or not. Us
 
 ## STATE
 
-This allows the user to print or modify the current state. Passing the -p flag (or no flags) will print the current state (last entry in the history list). The -s flag allows the user to change various attributes depending on what arguments you pass in. 
-
-To change / define a variable:
-
-    state -s var name:value name:value
-
-<br/>
-
-To change / add a file to the file system:
-
-    state -s fs name:file contents:permissions 
-
-Permissions are rw-rw-rw- by default.
-
-To change the current working directory:
-
-    state -s dir /new/location
-
-To set STDIN:
-
-    state -s stdin Some Values
-
-To set STDOUT:
-
-    state -s stdout Some Values
-
+This allows the user to print the current state.
 <br/>
 
 ## ALIAS
@@ -130,6 +149,20 @@ This alias allows the user a shorter way to echo things in the environment as sh
 
     e Hello World
 
+If you ever need to find the code for a particular alias run 
+
+    alias -p <The commands you'd like to see the code for>
+
+and the result will be a printed list of all code used in the commands.
+
+For example 
+
+    alias -p e
+
+Prints
+
+    e :  run echo
+
 <br/>
 
 ## PASS
@@ -142,6 +175,21 @@ This command does nothing. Shouldn't ever need to use it but it does exist
 
 An alias of PASS
 
+<br/>
+
+## JSON
+
+It can be helpful to save environments and be able to reload them between sessions. The JSON command allows the user to do exactly this. 
+
+The command:
+
+    JSON -e <Filename>
+
+Exports the current environment to a JSON file specified in the first argument. This exports ALL environemt settings to a JSON but will not maintain the action stack. So aliases, file systems, variables, histories, etc. are all saved to the JSON and can be reloaded
+
+This environment can be reloaded (imported) at a later time using the command
+
+    JSON -i <Filename>
 
 <br/>
 

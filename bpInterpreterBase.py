@@ -62,12 +62,12 @@ class InterpreterBase():
 
     def replace(self, nodes):
         return self.state.replace(nodes)
-    
+
     def build(self, node, append = False):
         if not append: self.action_stack = []
         vstr = NodeVisitor(node)
         vstr.apply(self.interpreter, vstr)
-    
+
     def stack(self):
         print('Action Stack: ')
         for el in self.action_stack:
@@ -83,8 +83,8 @@ class InterpreterBase():
     def print_variables(self):
         self.state.showVariables()
     
-    def print_filesystem(self):
-        self.state.showFileSystem()
+    def print_filesystem(self, showFiles = False):
+        self.state.showFileSystem(showFiles=showFiles)
     
     def stdin(self, IN = None):
         if IN is not None: self.state.STDIO.IN = IN
