@@ -68,3 +68,9 @@ class Program(AST):
 
     def __str__(self):
         return "Program \n" +('\n').join( [ '\t'+str(el) for el in self.commands ] )
+    
+    def __eq__(self, other):
+        if len(self.commands) != len(other.commands): return False
+        for i in range(0, len(self.commands)):
+            if self.commands[i] != other.commands[i]: return False
+        return True

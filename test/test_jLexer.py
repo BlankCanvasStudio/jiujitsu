@@ -2,7 +2,7 @@ from unittest import TestCase
 from jLexer import Lexer, LexerError
 from jToken import Token, TokenType
 
-class TestAst(TestCase):
+class TestjLexer(TestCase):
 
     def test_json(self):
         lex = Lexer('some text', {})
@@ -20,6 +20,7 @@ class TestAst(TestCase):
         }
         self.assertTrue(lex.json() == expected_results)
 
+
     def test_new(self):
         self.assertRaises(LexerError, Lexer('sometext').new, 1234)
         
@@ -35,6 +36,7 @@ class TestAst(TestCase):
         self.assertTrue(lex.first_word == True)
         self.assertTrue(lex.token_array == [])
         self.assertTrue(lex.alias_table == old_alias_table)
+
 
     def test_current_char(self):
         self.assertRaises(LexerError, Lexer('some text').current_char, 'anything')
@@ -95,6 +97,7 @@ class TestAst(TestCase):
             self.assertTrue(lex.current_char() == c)
             lex.advance()
     
+
     def test_skip_comment(self):
         text = "# some comment \nanother command"
         lex = Lexer(text)
@@ -120,6 +123,7 @@ class TestAst(TestCase):
         self.assertTrue(lex.is_alias('t'))
         self.assertFalse(lex.is_alias('m'))
 
+
     def test_add_alias(self):
         lex = Lexer('some text')
         self.assertRaises(LexerError, lex.add_alias, 1234, 'something')
@@ -130,6 +134,7 @@ class TestAst(TestCase):
         }
         lex.add_alias('t', 'run this')
         self.assertTrue(expected_results == lex.alias_table)
+
 
     def test_resolve_alias(self):
         alias_table = {
@@ -158,6 +163,7 @@ class TestAst(TestCase):
         ]
         self.assertTrue(expected_results == tokens)
 
+
     def test_using_comment(self):
         string = "run -fg echo # something we ignore\nrun -fg echo"
         lex = Lexer(string)
@@ -173,6 +179,7 @@ class TestAst(TestCase):
             Token(TokenType.ARG, 'echo'), Token(TokenType.EOF, None)
         ]
         self.assertTrue(expected_results == tokens)
+
 
     def test_using_colon(self):
         string = "run echo:this"
@@ -198,6 +205,7 @@ class TestAst(TestCase):
         tokens = Lexer(string).get_all_tokens()
         self.assertTrue(expected_results == tokens)
 
+
     def test_using_semicolon(self):
         string = "run echo this; run echo"
         tokens = Lexer(string).get_all_tokens()
@@ -208,6 +216,7 @@ class TestAst(TestCase):
             Token(TokenType.EOF, None)
         ]
         self.assertTrue(expected_results == tokens)
+
 
     def test_using_quotes(self):
         string = r'run "echo this"'

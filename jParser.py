@@ -31,8 +31,9 @@ class ParseError(Exception):
 
 class Parser:
     """ Lexer is based around text. Parser processes the text """
-    def __init__(self, text):
-        self.lexer = Lexer(text)
+    def __init__(self, text, alias_table = {}):
+        if type(text) is not str: raise ParseError("Error Parser(text != string)")
+        self.lexer = Lexer(text, alias_table)
         self.current_token = self.get_next_token()
 
 
@@ -43,17 +44,14 @@ class Parser:
 
     """ Reset the lexer to the new line. Then you can call parse on it """
     def new(self, text):
-        self.__init__(text)
+        if type(text) is not str: raise ParseError("Parser.new takes a string type object as parameter")
+        self.lexer.new(text)
+        self.current_token = self.get_next_token()
 
 
     """ Nice wrapper so you can use self """
     def get_next_token(self):
         return self.lexer.get_next_token()
-
-
-    """ Raises an error nicely """
-    def error(self, error_code, token):
-        raise ParseError('Error code: ' + error_code.value + ' at index: ' + self.lexer.index)
 
 
     """ Tries to consume type of token_type to verify the parser is encountering the right tokens
@@ -63,7 +61,6 @@ class Parser:
         if old_token.type == token_type:
             self.current_token = self.get_next_token()
         else:
-            print('token type: ', self.current_token.type)
             raise ParseError('Parser.eat encountered invalid type: ', token_type)
         return old_token
 
@@ -108,7 +105,9 @@ class Parser:
     """ How to use the parse to parse text. If no text is specified, then the last text 
         specified is used (even if that means during declaration) """
     def parse(self, text = None):
-        if text is not None: self.new(text)     # If you specified new text, use it. Otherwise use previous text
+        if text is not None: 
+            if type(text) is not str: raise ParseError("Parser.parse takes a string object as a parameter")
+            self.new(text)     # If you specified new text, use it. Otherwise use previous text
         node = self.program()                   # Create a program node (one per program). Then there should be an EOF
         if self.current_token.type != TokenType.EOF:
             raise ParseError("Error during Parser.parse. EOF node should be encountered but " + str(self.current_token.type) + " was found")
