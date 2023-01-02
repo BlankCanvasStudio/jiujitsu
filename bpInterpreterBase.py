@@ -147,18 +147,16 @@ class InterpreterBase():
 
 
         elif node.kind == 'list':
-            previous_result = None
             self.execute = True
             action = ActionEntry(func=self.emptyFunc, text='list node entry')
             self.action_stack += [ action ]
 
             for i, part in enumerate(node.parts):
-                if i % 2 == 0:
-                    # if self.execute:
+                if i % 2 == 0:              # Its an actual command
                     vstr2 = NodeVisitor(part)
                     self.interpreter(part, vstr2)
 
-                else:
+                else:                       # Its a pipeline or something to that end
                     def temp_func():
                         previous_result = self.state.STDIO.read()
                         if part.op == '||':
@@ -184,15 +182,14 @@ class InterpreterBase():
             parts = node.parts
             if parts[0].word == 'for' and parts[2].word == 'in' and (parts[4].word == ';' or parts[4].word == 'do'):
                 """ Action Queue Section """
-                # Save the iterator to the variable list as the initiation to the for loop
-                # def temp_func():
+                # Save the iterator to the variable list 
                 self.state.update_variable_list(node)
-                action = ActionEntry(func=self.emptyFunc, text='for loop entry')
+                action = ActionEntry(func=temp_func, text='for loop entry')
                 self.action_stack += [ action ]
                 
                 var_name = node.parts[1].word
-                var_values = copy.copy(self.state.variables[var_name])
-            
+                var_values = self.state.variables[var_name]
+
                 # Ignore unnecessary do and ; nodes
                 parts = parts[5:]
                 while hasattr(parts[0], 'word') and (parts[0].word == 'do' or parts[0].word == ';'):
@@ -213,7 +210,6 @@ class InterpreterBase():
                         vstr2.apply(self.interpreter, vstr2)
 
                 # Remove the iterator after the for loop exits
-                # def temp_func():
                 self.state.variables.pop(var_name)
                 action = ActionEntry(func=self.emptyFunc, textaction_queue='Exit for loop')
                 self.action_stack += [ action ]
@@ -256,7 +252,6 @@ class InterpreterBase():
             if command.word in self.bin:
                 """ Very cheeky dynamic programming. Hopefully it doesn't kill performance too much """
                 func = getattr(self, 'f_'+command.word)
-                # func(command, args)
                 def temp_func():
                     func(command, args, node)
                 action = ActionEntry(func=temp_func, text='Command node: ' + command.word)
@@ -279,7 +274,7 @@ class InterpreterBase():
 
         elif command.kind == 'assignment':
             to_remove = []  # need to remove backwards to keep the indexes right
-            
+
             """ Resolve the values from all command substitutions """
             for i, part in enumerate(command.parts):
                 if part.kind == 'commandsubstitution':
