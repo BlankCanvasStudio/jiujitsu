@@ -41,7 +41,7 @@ class InterpreterBase():
         pass
 
 
-    """  """
+    """ Used when converting CLI state to json file """
     def json(self):
         return {**self.state.json(), **{ "execute": 't' if self.execute else 'f' }}
     
@@ -52,21 +52,24 @@ class InterpreterBase():
         return self.state.working_dir
 
 
-    """ Legacy wrappers. Will be removed eventually """
     def showState(self, showFiles = False):
         self.state.show(showFiles=showFiles)
         print('Action Queue Size: ', len(self.action_stack))
 
+
     def update_file_system(self, name,  contents, permissions, location = None):
         self.state.update_file_system(name, contents, permissions, location)
 
+
     def replace(self, nodes):
         return self.state.replace(nodes)
+
 
     def build(self, node, append = False):
         if not append: self.action_stack = []
         vstr = NodeVisitor(node)
         vstr.apply(self.interpreter, vstr)
+
 
     def stack(self):
         print('Action Stack: ')
@@ -130,7 +133,7 @@ class InterpreterBase():
         
 
         elif node.kind == 'command':
-            self.run_command(node.parts[0], node.parts[1:])
+            self.run_command(node.parts[0], node.parts[1:], node)
 
 
         elif node.kind == 'compound':
@@ -248,20 +251,18 @@ class InterpreterBase():
         return bashparse.DONT_DESCEND       # I feel like this is a bad way to use bashparse but too much thinking
 
 
-    def run_command(self, command, args):
+    def run_command(self, command, args, node):
         if command.kind == 'word':
             if command.word in self.bin:
                 """ Very cheeky dynamic programming. Hopefully it doesn't kill performance too much """
                 func = getattr(self, 'f_'+command.word)
                 # func(command, args)
                 def temp_func():
-                    func(command, args)
+                    func(command, args, node)
                 action = ActionEntry(func=temp_func, text='Command node: ' + command.word)
                 self.action_stack += [ action ]
             
             else: 
-                def temp_func():
-                    pass
                 resp = ''
                 while resp != 'n' and resp != 'y':
                     resp = input('Unknown command ' + command.word + ' encouncered. Skip? (y/n)')
@@ -271,7 +272,7 @@ class InterpreterBase():
                 elif resp == 'y':
                     pass
 
-                action = ActionEntry(func=temp_func, text='Unknown command: ' + command.word + '. Passing')
+                action = ActionEntry(func=seld.emptyFunc, text='Unknown command: ' + command.word + '. Passing')
                 
                 self.action_stack += [ action ]
 

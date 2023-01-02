@@ -11,14 +11,14 @@ class Interpreter(InterpreterBase):
         super().__init__(STDIO=STDIO, working_dir=working_dir, variables=variables, 
                             fs=fs, open_sockets=open_sockets, truths=truths)
     
-    def f_echo(self, command, args):
+    def f_echo(self, command, args, node):
         text = ''
         for node in args:
             text += node.word + ' '
         text = text[:len(text)-1]
         self.state.STDIO.write(text)
 
-    def f_cd(self, command, args):
+    def f_cd(self, command, args, node):
         if len(args) != 1: 
             print('bash: cd: too many arguments')
             self.state.STDIO.write('1')
@@ -26,7 +26,7 @@ class Interpreter(InterpreterBase):
             self.working_dir = args[0].word
             self.state.STDIO.write('0')
 
-    def f_wget(self, command, args):
+    def f_wget(self, command, args, node):
         if validators.url(args[0].word): 
             filename = input('Wget requested "'+ args[0].word +'". Please enter a filename to pass in: ')
             file_contents = open(filename).read()
@@ -34,7 +34,7 @@ class Interpreter(InterpreterBase):
         else:
             raise ValueError("Invalid URL to wget")
     
-    def f_chmod(self, command, args):
+    def f_chmod(self, command, args, node):
         if args[0].word == '+x':
             location = self.working_dir + '/' + args[1].word        # This actually doesn't work
             if location in self.fs: 
@@ -49,6 +49,6 @@ class Interpreter(InterpreterBase):
             permissions = ''.join(perm_list)
             self.fs[location].setPermissions(permissions)
     
-    def f_rm(self, command, args):
+    def f_rm(self, command, args, node):
         if args[0].word in self.fs or self.working_dir+'/'+args[0].word in self.fs: self.fs.pop(args[0].word)
         else: print("rm: cannot remove '" + args[0].word + "': No such file or directory")
