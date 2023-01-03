@@ -36,8 +36,17 @@ class InterpreterBase():
         self.execute = execute
 
 
+    def __eq__(self, other):
+        if len(self.action_stack) != len(other.action_stack): return False
+        for i, el in enumerate(self.action_stack):
+            if self.action_stack[i] != other.action_stack[i]: return False     
+        if self.execute != other.execute: return False   
+        if self.state != other.state: return False  
+        return True
+
+
     """ Used in Action Queues """
-    def emptyFunc():
+    def emptyFunc(self):
         pass
 
 
@@ -52,9 +61,16 @@ class InterpreterBase():
         return self.state.working_dir
 
 
+    """ The following 2 functions need to be this similar to make the CLI and 
+        python implementations work """
     def showState(self, showFiles = False):
         self.state.show(showFiles=showFiles)
         print('Action Queue Size: ', len(self.action_stack))
+    
+    def stateText(self, showFiles = False):
+        output = self.state.text(showFiles=showFiles) + '\n'
+        output += 'Action Queue Size: ' + str(len(self.action_stack))
+        return output
 
 
     def update_file_system(self, name,  contents, permissions, location = None):
@@ -85,9 +101,13 @@ class InterpreterBase():
 
     def print_variables(self):
         self.state.showVariables()
+    def text_variables(self):
+        return self.state.variablesText()
     
     def print_filesystem(self, showFiles = False):
         self.state.showFileSystem(showFiles=showFiles)
+    def text_filesystem(self, showFiles = False):
+        return self.state.fileSystemText(showFiles=showFiles)
     
     def stdin(self, IN = None):
         if IN is not None: self.state.STDIO.IN = IN
@@ -261,7 +281,6 @@ class InterpreterBase():
                 resp = ''
                 while resp != 'n' and resp != 'y':
                     resp = input('Unknown command ' + command.word + ' encouncered. Skip? (y/n)')
-                    print('resp value: ', resp)
                 if resp == 'n':
                     raise ValueError("Command " + command.word + " not implemented")
                 elif resp == 'y':

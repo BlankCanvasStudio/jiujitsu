@@ -20,11 +20,9 @@ class Lexer:
 
     def __init__(self, text, alias_table = {}):
         """ I actively hate this so much but python won't give me the raw string. So irritating """
-        # self.text = text.replace('\\', '\\\\').replace("\"", "\\\"").replace('\'', '\\\'').replace('\n', '\\n').replace('\t', '\\t')
         self.text = text
         self.index = 0
         self.token_index = 0
-        # self.current_char = self.text[self.index]
         self.first_word = True
 
         """ This is used to hold preprocessed tokens when it makes life easier. 
@@ -62,7 +60,7 @@ class Lexer:
         # Now it must be an escaped character so return the actual escaped character in its place
         escaped_char = self.text[self.index + 1]
         if escaped_char == '"':
-            return "\""
+            return "\"" 
         elif escaped_char == "'":
             return "\'"
         elif escaped_char == 'n':
@@ -190,10 +188,9 @@ class Lexer:
 
         """ Rasie an error if the quoted argument isn't followed by a space or a colon """
         if self.current_char() and (not self.current_char().isspace() and not self.current_char() == ':'): 
-            print('current char: ', self.current_char())
-            raise LexerError("Quoted arguments must be followed by a space or colon")
+            raise LexerError("Quoted arguments must be followed by a space or colon. Encountered character: " + self.current_char())
 
-        return Token(type_in=TokenType.ARG, value=text)
+        return Token(type_in=TokenType.ARG, value=text, quoted=True)
 
 
     """ Called by the parser to get the next token in the sequence """

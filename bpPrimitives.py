@@ -1,4 +1,5 @@
 from bpFileSystem import FileSocket, File
+import bashparse
 
 
 class ActionEntry():
@@ -15,6 +16,9 @@ class ActionEntry():
 
     def __repr__(self):
         return self.__str__()
+    
+    def __eq__(self, other):
+        return self.text == other.text
 
 
 class State:
@@ -36,6 +40,27 @@ class State:
         self.truths = {}
 
 
+    def __eq__(self, other):
+        if self.STDIO != other.STDIO: return False
+        if self.working_dir != other.working_dir: return False 
+        if self.variables != other.variables: return False
+        if self.fs != other.fs: return False
+        if len(self.open_sockets) != len(other.open_sockets): return False
+        for i in range(0, len(self.open_sockets)):
+            if self.open_sockets[i] != other.open_sockets[i]: return False
+        if self.truths != other.truths: return False
+        return True
+        
+
+    def text(self, showFiles = False):
+        output = 'Working directory: ' + repr(self.working_dir) +'\n'
+        output += self.variablesText() + '\n'
+        output += 'Number of open sockets: ' + str(len(self.open_sockets)) + '\n'
+        output += 'Standard IN: ' + repr(self.STDIO.IN) + '\n'
+        output += 'Standard OUT: ' + repr(self.STDIO.OUT) + '\n'
+        output += self.fileSystemText(showFiles=showFiles)
+        return output
+
     """ Print functionality for CLI (and I guess other purposes) """
     def show(self, showFiles = False):
         print('Working directory: ', repr(self.working_dir), '\n')
@@ -47,9 +72,10 @@ class State:
 
 
     """ Update or create a file in the fs """
-    def update_file_system(self, name,  contents, permissions, location = None):
+    def update_file_system(self, name,  contents, permissions='rw-rw-rw-', location = None):
         if location is None: location = self.working_dir
-        self.fs[location + '/' + name] = File(name=name, contents=contents, permissions=permissions)
+        name = location + '/' + name
+        self.fs[name] = File(name=name, contents=contents, permissions=permissions)
 
 
     """ Replace all the aliases possible in the state """
@@ -83,6 +109,14 @@ class State:
         if not len(self.variables):
             print("No variables in list")
         print()
+    
+    def variablesText(self):
+        output = 'Variables: \n'
+        for key, value in self.variables.items():
+            output += '  ' + key + ': ' + value[-1]
+        if not len(self.variables):
+            output += "No variables in list\n"
+        return output
 
 
     def showFileSystem(self, showFiles = False):
@@ -94,3 +128,13 @@ class State:
         if not len(self.fs):
             print("No Files in the file system")
         print()
+    
+    def fileSystemText(self, showFiles = False):
+        output = 'File System: \n'
+        for name, file in self.fs.items():
+            output += '  ' + name + ' permissions: ' + str(file.permissions) + '\n'
+            if showFiles:
+                output += file.contents + '\n'
+        if not len(self.fs):
+            output += "No Files in the file system" + '\n'
+        return output

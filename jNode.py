@@ -17,8 +17,9 @@ class Flag(AST):
 
 
 class Arg(AST):
-    def __init__(self, value):
+    def __init__(self, value, quoted = False):
         self.value = value
+        self.quoted = quoted
     def __str__(self):
         return "Arg{" + str(self.value) + "}"
     def __repr__(self):

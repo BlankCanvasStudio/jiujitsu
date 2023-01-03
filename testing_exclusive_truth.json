@@ -1,0 +1,29 @@
+{
+    "history": [
+        {
+            "name": "init",
+            "action": "None",
+            "env": {
+                "STDIO": {
+                    "IN": "",
+                    "OUT": "",
+                    "id_num": 0
+                },
+                "working_dir": "~",
+                "variables": {},
+                "fs": [
+                    {
+                        "name": "~/name1",
+                        "contents": "value1",
+                        "permissions": "rw-rw-rw-"
+                    }
+                ],
+                "open_sockets": [],
+                "truths": {},
+                "execute": "t"
+            }
+        }
+    ],
+    "aliases": {},
+    "maintain_history": "t"
+}

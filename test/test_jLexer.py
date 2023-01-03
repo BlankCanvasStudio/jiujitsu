@@ -226,3 +226,16 @@ class TestjLexer(TestCase):
             Token(TokenType.EOF, None)
         ]
         self.assertTrue(expected_results == tokens)
+    
+
+    def test_nested_escape_quotes(self):
+        string = r'tokenize "run echo \"hello world\""'
+        tokens = Lexer(string).get_all_tokens()
+        self.assertTrue(tokens[1] == Token(TokenType.ARG, 'run echo "hello world"'))
+
+        string = r'cmd arg1 arg2 "arg3.1 \"arg3.2\"" arg4'
+        tokens = Lexer(string).get_all_tokens()[1:-1]   # Remove cmd and EOF
+        expected_tokens = [ Token(TokenType.ARG, 'arg1'), Token(TokenType.ARG, 'arg2'), 
+                            Token(TokenType.ARG, 'arg3.1 "arg3.2"'), Token(TokenType.ARG, 'arg4') ]
+        self.assertTrue(tokens == expected_tokens)
+

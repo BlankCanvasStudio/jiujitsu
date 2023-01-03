@@ -5,9 +5,15 @@ class File:
         self.permissions = permissions
 
     def __str__(self):
-        print('FileName: ', self.name)
-        print('  Permissions: ', self.permissions)
-        print('  Contents: ', self.contents)
+        return 'FileName: ' + self.name + '\n' \
+                + '  Permissions: ' + self.permissions + '\n' \
+                + '  Contents: ' + self.contents
+    
+    def __eq__(self, other):
+        if self.name != other.name: return False
+        if self.contents != other.contents: return False
+        if self.permissions != other.permissions: return False
+        return True
 
     def setPermissions(self, permissions):
         self.permissions = permissions
@@ -21,6 +27,12 @@ class FileSocket:
         self.OUT = OUT
         self.id = id_num
         self.IN = IN
+    
+    def __eq__(self, other):
+        if self.OUT != other.OUT: return False
+        if self.id != other.id: return False
+        if self.IN != other.IN: return False
+        return True
 
     def write(self, text_in):
         self.OUT += text_in 

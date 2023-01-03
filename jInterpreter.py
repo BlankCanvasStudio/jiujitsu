@@ -1,14 +1,41 @@
 #!/bin/python3
 """ Bringing the death star to a knife fight """
-import subprocess, os, stat, copy, json
-import bpInterpreter, bashparse
+import subprocess, os, stat, copy, json, re
+import bashparse
 
 
 """ Import the Parser and nodes that we created/need to deal with """
 from jNode import Flag, Arg, Command
 from jParser import Parser
 from jRecord import Record
+from bpFileSystem import FileSocket
 from bpInterpreter import Interpreter as bpInterpreter
+
+
+class InterpreterExitStatus:
+    def __init__(self, message, status = 0, print_out=False):
+        self.message = message
+        self.print_out = print_out
+        self.status = status
+    
+    def __str__(self):
+        return 'ExitStatus{ ' + 'MESSAGE: ' + self.message + '; STATUS: ' + str(self.status) + '}'
+    def __repr__(self):
+        return self.__str__()
+
+    def __eq__(self, other):
+        if self.message != other.message: return False
+        if self.print_out != other.print_out: return False 
+        if self.status != other.status: return False
+        return True
+    
+    def print(self):
+        if self.status:
+            print("Judo Error")
+        if self.status or self.print_out:
+            print(self.message) 
+        print('')     # Just add a space after every command is run. Nice for formatting
+
 
 
 """ All the functional sections of the interpreter. 
@@ -38,13 +65,15 @@ class Interpreter():
             'VOID': self.void,
             'JSON':self.json,
             'EXIT': self.exit,
+            'TOKENIZE':self.tokenize,
         }
         self.prog_nodes = None
         self.index = 0
         self.listening = True
         self.maintain_history = maintain_history
-        self.parser = Parser('pass')
-        self.env = bpInterpreter()
+        self.parser = Parser('pass', {})
+        self.env = bpInterpreter(STDIO = FileSocket(id_num = 0), working_dir = '~', variables = {}, 
+                    fs = {}, open_sockets = [], truths = {})
         self.history_stack = [ Record(env=self.env, name='init') ]
 
 
@@ -61,16 +90,19 @@ class Interpreter():
                     print('Unknown Judo Command: ', cmd.func.upper())
                     print('Nothing was changed')
                     break
-                func(cmd.flags, *cmd.args)                  # Call the function if it was found
+                exit_code = func(cmd.flags, *cmd.args)                  # Call the function if it was found
 
+                exit_code.print()
 
     """ Converts arguments to strings. A necessary wrapper cause escape characters """
-    def args_to_str(self, args):
+    def args_to_str(self, args, unescape=False):
         text = ''
         for arg in args:
-            text += arg.value + ' '
+            if unescape:
+                text += arg.unescape() + ' '
+            else:
+                text += arg.value + ' '
         text = text[:-1]    # last space is wrong plz remove
-        text = text.replace('\\"', '"').replace('\\t', '    ')
         return text
 
 
@@ -79,69 +111,75 @@ class Interpreter():
         filename = args[0].value
         self.prog_nodes = bashparse.parse(open(filename).read())
         self.index = 0
+        return InterpreterExitStatus("SUCCESS")
 
 
     """ Executes the next command in the node list. -e means the command should execute in surrounding env """
     def next(self, flags, *args):
         def get_next_node():
-            if self.prog_nodes is None or len(self.prog_nodes) == 0: return None
-            self.index = self.index + 1
-            if self.index >= len(self.prog_nodes): return None
+            # if self.prog_nodes is None or len(self.prog_nodes) == 0: return None
+            if self.index > len(self.prog_nodes) - 1: return None
             node = self.prog_nodes[self.index]
+            self.index = self.index + 1
             return node
 
-        node = self.get_next_node()                         # Get the next node
+        node = get_next_node()                         # Get the next node
         node_str = str(bashparse.NodeVisitor(node))
-        if Flag('e') in flags: 
-            self.syscall(node_str)  # Convert to str then syscall
 
         """ All -e nodes need to be executed in environment so you can switch between them without issue """
         if self.maintain_history or Flag('h') in flags:
             self.save_state(action = node_str)
+
+        if Flag('e') in flags:
+            self.syscall(node_str)  # Convert to str then syscall
 
         if Flag('i') in flags:  # i flag means you want to inch it
             self.env.build(node, append = False)
         else:
             self.env.run(node)
 
-        """ Print the state cause its nice """
-        self.state()
+        if Flag('p') in flags:
+            return self.state([])
 
+        return InterpreterExitStatus("SUCCESS")
+        
 
     """ Undoes any action taken in the environment. Can't undo if it exited the env though """
     def undo(self, flags, *args):
         if len(self.history_stack) > 1:                     # Roll back if possible
-            self.env = self.history_stack[-1].env
             self.history_stack = self.history_stack[:-1]
+            self.env = self.history_stack[-1].env
             self.index  = self.index - 1
         else:                                               # If not the re-create from the ground up
-            self.env = bpInterpreter.Interpreter()
+            self.env = bpInterpreter()
             self.history_stack = [ Record(env=self.env, name='init') ]
+            self.index = 0
+        return InterpreterExitStatus("SUCCESS")
 
 
     """ Move passed a node if the user doesn't care about it """
     def skip(self, flags, *args):
         self.index = self.index + 1
+        return InterpreterExitStatus("SUCCESS")
 
 
     """ Allows the user to create custom points in the history """
     def save(self, flags, *args):
         if not len(args):
-            print("Must specify a name for your save point.")
-            print("Nothing was saved")
-            return 
+            return InterpreterExitStatus("Must specify a name for your save point. \nNothing was saved", status = 1)
 
         name = self.args_to_str(args)
         action = 'User Save'
         self.save_state(name=name, action=action)
+        return InterpreterExitStatus("SUCCESS")
 
 
     """  """
     def inch(self, flags, *args):
         res = self.env.inch()
         if not res:
-            print("Action Stack is empty. Please run build or next/run -i to load the action stack")
-
+            return InterpreterExitStatus("Action Stack is empty. Please run build or next/run -i to load the action stack", status = 1)
+        return InterpreterExitStatus("SUCCESS")
 
     """ Run a user input command by combining the args into a command and executing it. 
         All commands must also be run in env to maintain consistency. -i is a wrapper for build """
@@ -150,19 +188,20 @@ class Interpreter():
 
         if self.maintain_history or Flag('h') in flags:
             self.save_state(action = text)
-
         if Flag(value='e') in flags: 
             self.syscall(text)
         
         """ Adding -i is going to be a wrapper for build so it mirrors 'next' nicely """
         if Flag(value='i') in flags:
             self.build([], *args)
-            return
+            return InterpreterExitStatus("SUCCESS")
         
         """ Even escaped commands must be run in env to maintain consistency when switching """
         nodes = bashparse.parse(text)
         for node in nodes:
             self.env.run(node)
+        
+        return InterpreterExitStatus("SUCCESS")
 
 
     """ Builds the action stack for a given command. Useful for debugging the bashparse interpreter """
@@ -171,31 +210,40 @@ class Interpreter():
         text = self.args_to_str(args)
 
         # Build the action stack for the node
-        nodes = bashparse.parse(text)
-        for node in nodes:
-            self.env.build(node, append= Flag('a') in flags)
+        try:
+            nodes = bashparse.parse(text)
+            for node in nodes:
+                self.env.build(node, append= Flag('a') in flags)
+            return InterpreterExitStatus("SUCCESS")
+        except:
+            return InterpreterExitStatus(message="Bashparse cannot parse the code provided", status=1)
 
 
     """ Prints the action stack of the interpreter """
     def stack(self, flags, *args):
         self.env.stack()
+        return InterpreterExitStatus("SUCCESS")
 
 
     """ Nice little parse wrapper """
     def parse(self, flags, *args):
-        text = ''
-        for arg in args:
-            text += arg.value + ' '
-        text = text[:-1]    # last space is wrong plz remove
+        text = self.args_to_str(args)
 
-        nodes = bashparse.parse(text)
-        for node in nodes:
-            print(node.dump())
+        try:
+            nodes = bashparse.parse(text)
+            for node in nodes:
+                print(node.dump())
+        
+            return InterpreterExitStatus("SUCCESS")
+
+        except:
+            return InterpreterExitStatus("Bashparse could not parse text", status = 1)
 
 
     """ Writes the specified command into an executable file and runs it. 
         Then it prints the results """
     def syscall(self, bashCommand):
+        if type(bashCommand) is not str: return InterpreterExitStatus("Interpreter.syscall takes only a single text argument", status=1)
         """ Replace all the nodes using the environment """
         nodes = self.env.replace(bashparse.parse(bashCommand))
         
@@ -205,17 +253,23 @@ class Interpreter():
         """ Execute the code """
         result = subprocess.run(text, shell=True, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
-        """ Print results """
-        print('Output: \n',  str(result.stdout))
-        print('Error: \n', str(result.stderr))
+        """ Put results in the STDIO """
+        output = str(result.stdout)
+        if len(str(result.stderr)): output += '\n' + 'Error: ' + str(result.stderr)
+        self.env.state.STDIO.OUT = output
+
+        return InterpreterExitStatus("SUCCESS")
 
 
     """ Deals with the printing and modificaiton of the interpreters working directory """
     def dir(self, flags, *args):
         if len(args) == 1:
             self.env.working_dir(args[0].value)
-        else : print("Invalid number of arguments passed into DIR. Nothing changed")
-        print('Working dir: ', self.env.working_dir())
+            return InterpreterExitStatus(message = 'Working dir: ' + self.env.working_dir(), 
+                        status=0, print_out=True)
+        else : 
+            return InterpreterExitStatus("Invalid number of arguments passed into DIR. Nothing changed", status=1)
+        
 
 
     """ For maintaining the STDIN for the current env """
@@ -223,7 +277,8 @@ class Interpreter():
         arg_text = self.args_to_str(args)
         if len(args):
             self.env.stdin(arg_text)
-        print("STD IN: " + self.env.stdin())
+        return InterpreterExitStatus(message = "STD IN: " + self.env.stdin(), 
+                    status=0, print_out=True)
 
 
     """ For maintaining the STDOUT for the current env """
@@ -231,7 +286,8 @@ class Interpreter():
         arg_text = self.args_to_str(args)
         if len(args):
             self.env.stdout(arg_text)
-        print("STD OUT: " + self.env.stdout())
+        return InterpreterExitStatus(message="STD OUT: " + self.env.stdout(),
+                    status=0, print_out=True)
 
 
     """ For maintaining the variables in the current env """
@@ -241,8 +297,11 @@ class Interpreter():
             while len(args) >= 3 and args[1] == Arg(':'):    # Man I hate this implementation
                 self.env.set_variable(args[0].value, args[2].value) # Name:Value
                 args = args[3:] if len(args) > 3 else []
+
         if Flag('p') in flags:
-            self.env.print_variables()
+            return InterpreterExitStatus(message=self.env.text_variables(), print_out=True)
+
+        return InterpreterExitStatus("SUCCESS")
 
 
     def fs(self, flags, *args):
@@ -254,16 +313,17 @@ class Interpreter():
             file_name = working_args.pop(0).value
 
             """ Strip the : """
-            if working_args.pop(0) != Arg(':'): 
-                print('Invalid file formation. Please follow pattern: name:contents:permissions')
-                return
+            if working_args[0] != Arg(':'): 
+                return InterpreterExitStatus(status = 1, message = 'Invalid file formation. Please follow pattern: name:contents:permissions')
+            working_args.pop(0)
 
             """ Get the file contents """
-            if not len(working_args): print('Invalid file formation. File contents needed')
+            if not len(working_args): return InterpreterExitStatus(status=1, message='Invalid file formation. File contents needed')
             file_contents = working_args.pop(0).value
             
             """ Get optional file permissions if next arg is : """
-            if len(working_args) > 2 and working_args.pop(0) == Arg(':'):
+            if len(working_args) >= 2 and working_args[0] == Arg(':'):
+                working_args.pop(0)     # remove :
                 file_permissions = working_args.pop(0).value
             else:
                 file_permissions = 'rw-rw-rw-'
@@ -272,29 +332,30 @@ class Interpreter():
             self.env.update_file_system(name=file_name, contents=file_contents, permissions=file_permissions)
         
         if Flag('p') in flags:
-            self.env.print_filesystem(showFiles=True)
+            return InterpreterExitStatus(message = self.env.text_filesystem(showFiles=True), print_out=True)
 
+        return InterpreterExitStatus("SUCCESS")
 
     """ Implementation of the state function. Prints if the -p flag is passed in """
     def state(self, flags, *args):
-        print()
-        self.env.showState()
-        print()
+        output = '\n' + self.env.stateText()
+        return InterpreterExitStatus(message=output, print_out=True)
 
 
     """ Nicely exits the CLI """
     def exit(self, flags, *args):
         self.listening = False
+        return InterpreterExitStatus("SUCCESS")
     
 
     """ Imports / Exports the state to a JSON file """
     def json(self, flags, *args):
+        if len(args) != 1: 
+            return InterpreterExitStatus("Wrong # of arguments. 1 filename must be specified", status = 1)
+
         filename = self.args_to_str(args)
         filename = filename if filename[-5:] == '.json' else filename + '.json'
         
-        if len(args) != 1: 
-            print("Wrong # of arguments. 1 filename must be specified")
-            return
         if Flag('i') in flags:  # Import
             data = json.load(open(filename))
             self.maintain_history = data['maintain_history'] == 't'
@@ -311,11 +372,11 @@ class Interpreter():
             fd = open(filename, "w")
             json.dump(pre_json, fd, indent=4)
         else:
-            print('Please specify -i or -e')
+            return InterpreterExitStatus('Please specify -i or -e', status = 2)
 
     """ A simple function to not execute anything. Might be unnecessary but it exists """
     def void(self, flags, *args):
-        pass
+        return InterpreterExitStatus("SUCCESS")
 
 
     """ How the judo interpreter handles history. Creates a new bpInterpreter with a copy of the
@@ -325,34 +386,56 @@ class Interpreter():
         new_env = copy.deepcopy(self.env)
         self.history_stack += [ Record(env=new_env, name=name, action=action) ]
         self.env = new_env
+        return InterpreterExitStatus("SUCCESS")
         
     
 
     """ Implementation of the history command. Prints the history if -p is passed in.
         on/off/toggle will change if history is changed or not """
     def history(self, flags, *args):
+        to_return = InterpreterExitStatus("SUCCESS")
         if Flag('p') in flags or len(flags) == 0:
+            output = '\n' + "History" + '\n'
             if len(self.history_stack):
-                print('\n' + "History" + '\n')
-                for record in self.history_stack: record.print(showFiles = False)
+                for record in self.history_stack: output += record.text(showFiles = False)
             else:
-                print("No History yet")
+                output += "No History yet\n"
+            to_return.message = output
+            to_return.print_out = True
         if Arg('on') in args:
             self.maintain_history = True
         if Arg('off') in args:
             self.maintain_history = False
         if Arg('toggle') in args:
             self.maintain_history = not self.maintain_history
+        return to_return
     
 
     """ How the interpreter handles the alias command. When its run, the command is passed to 
         the lexer so it will sub the command with the string passed in in the args. Last arg is the 
         name of the alias """
     def alias(self, flags, *args):
+        to_return = InterpreterExitStatus("SUCCESS")
         if Flag('p') in flags:
+            output = ''
             for el in args:
-                print(el.value, ': ', self.parser.lexer.json()[el.value])
-            return
-        alias = args[-1].value
-        cmd_aliased = ' '.join( [ str(arg.value) for arg in args[:-1] ] ) # convert args to string
-        self.parser.lexer.add_alias(alias, cmd_aliased)
+                output += el.value + ': ' + self.parser.lexer.json()[el.value] + '\n'
+            to_return.message=output
+            to_return.print_out=True
+
+        else:
+            alias = args[-1].value
+            cmd_aliased = ' '.join( [ str(arg.value) for arg in args[:-1] ] ) # convert args to string
+            self.parser.lexer.add_alias(alias, cmd_aliased)
+        return to_return
+
+
+    """ Exists for debugging, not listed in docs or test cause not suppoed to be public """
+    def tokenize(self, flags, *args):
+        new_lex = copy.copy(self.parser.lexer)
+        new_lex.new(self.args_to_str(args))
+        tokens = new_lex.get_all_tokens()
+        output = ''
+        for token in tokens:
+            output += token.unescape()
+        return InterpreterExitStatus(message=output, print_out=True)

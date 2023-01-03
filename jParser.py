@@ -99,7 +99,8 @@ class Parser:
 
     """ How to create an argument node. Contains only the value. No parts, no lists, nothing. Very simple """
     def argument(self):
-        return Arg(self.eat(TokenType.ARG).value)   # Beautiful
+        token = self.eat(TokenType.ARG)
+        return Arg(token.value, quoted = token.quoted)   # Beautiful
 
 
     """ How to use the parse to parse text. If no text is specified, then the last text 
