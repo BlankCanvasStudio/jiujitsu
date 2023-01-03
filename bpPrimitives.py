@@ -37,7 +37,7 @@ class State:
         self.variables = variables
         self.fs = fs
         self.open_sockets = open_sockets
-        self.truths = {}
+        self.truths = truths
 
 
     def __eq__(self, other):
@@ -61,6 +61,7 @@ class State:
         output += self.fileSystemText(showFiles=showFiles)
         return output
 
+
     """ Print functionality for CLI (and I guess other purposes) """
     def show(self, showFiles = False):
         print('Working directory: ', repr(self.working_dir), '\n')
@@ -74,7 +75,7 @@ class State:
     """ Update or create a file in the fs """
     def update_file_system(self, name,  contents, permissions='rw-rw-rw-', location = None):
         if location is None: location = self.working_dir
-        name = location + '/' + name
+        name = location + '/' + name if location[-1] != '/' else location + name
         self.fs[name] = File(name=name, contents=contents, permissions=permissions)
 
 
@@ -109,7 +110,8 @@ class State:
         if not len(self.variables):
             print("No variables in list")
         print()
-    
+
+
     def variablesText(self):
         output = 'Variables: \n'
         for key, value in self.variables.items():
@@ -128,7 +130,8 @@ class State:
         if not len(self.fs):
             print("No Files in the file system")
         print()
-    
+
+
     def fileSystemText(self, showFiles = False):
         output = 'File System: \n'
         for name, file in self.fs.items():
