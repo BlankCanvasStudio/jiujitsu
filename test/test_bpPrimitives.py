@@ -52,6 +52,7 @@ class TestState(TestCase):
 
 
     def test_update_file_system(self):
+        """ This should mirror test_bpInterpreterBase.test_update_file_system """
         stdio = State()
         
         """ Try it with all arguments """
@@ -74,11 +75,17 @@ class TestState(TestCase):
 
     def test_replace(self):
         """ Most of the replacement testing is actually in bashparse """
+        """ This should mirror test_bpInterpreterBase.test_replace """
         var_list = {'one':['two']}
         stdio = State(variables=var_list)
         node = bashparse.parse("echo $one")
         replaced = stdio.replace(node)
         self.assertTrue(replaced[0] == bashparse.parse('echo two')[0])
+
+        """ Thanks Wes for finding this bug """
+        node = bashparse.parse("echo a; b=3; echo $b")
+        replaced = stdio.replace(node)
+        self.assertTrue(replaced[0] == bashparse.parse('echo a; b=3; echo 3')[0])
 
 
     def test_set_variable(self):
@@ -100,8 +107,8 @@ class TestState(TestCase):
 
 
     def test_json(self):
-        stdio = State()
-        json = stdio.json()
+        something = State()
+        json = something.json()
 
         self.assertTrue(json['STDIO'] == FileSocket(id_num=0).json())
         self.assertTrue(json['working_dir'] == '~')

@@ -18,7 +18,8 @@ class Lexer:
     It is the job of the parser to determine if those tokens are in a logical order
     """
 
-    def __init__(self, text, alias_table = {}):
+    def __init__(self, text, alias_table = None):
+        if alias_table is None: alias_table = {}    # Done cause mutable and python might save by reusing the object
         """ I actively hate this so much but python won't give me the raw string. So irritating """
         self.text = text
         self.index = 0

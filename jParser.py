@@ -31,7 +31,8 @@ class ParseError(Exception):
 
 class Parser:
     """ Lexer is based around text. Parser processes the text """
-    def __init__(self, text, alias_table = {}):
+    def __init__(self, text, alias_table = None):
+        if alias_table is None: alias_table = {}
         if type(text) is not str: raise ParseError("Error Parser(text != string)")
         self.lexer = Lexer(text, alias_table)
         self.current_token = self.get_next_token()

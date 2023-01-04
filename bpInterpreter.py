@@ -6,11 +6,20 @@ import validators
 
 class Interpreter(InterpreterBase):
 
-    def __init__(self, STDIO = FileSocket(id_num = 0), working_dir = '~', variables = {}, 
-                    fs = {}, open_sockets = [], truths = {}):
+    def __init__(self, STDIO = None, working_dir = None, variables = None, 
+                    fs = None, open_sockets = None, truths = None):
+        
+        """ Irritating but necessary cause mutable arguments """
+        if STDIO is None: STDIO = FileSocket(id_num = 0)
+        if working_dir is None: working_dir = '~'
+        if variables is None: variables = {}
+        if fs is None: fs = {}
+        if open_sockets is None: open_sockets = []
+        if truths is None: truths = {}
+
         super().__init__(STDIO=STDIO, working_dir=working_dir, variables=variables, 
                             fs=fs, open_sockets=open_sockets, truths=truths)
-    
+
     def f_echo(self, command, args, node):
         text = ''
         for node in args:
@@ -33,7 +42,7 @@ class Interpreter(InterpreterBase):
             self.update_file_system(name='index.html', contents=file_contents, permissions='rw-rw-rw-')
         else:
             raise ValueError("Invalid URL to wget")
-    
+
     def f_chmod(self, command, args, node):
         if args[0].word == '+x':
             location = self.state.working_dir + '/' + args[1].word        # This actually doesn't work
@@ -48,11 +57,11 @@ class Interpreter(InterpreterBase):
             perm_list[8] = 'x'
             permissions = ''.join(perm_list)
             self.state.fs[location].setPermissions(permissions)
-    
+
     def f_rm(self, command, args, node):
         if args[0].word in self.state.fs or self.state.working_dir+'/'+args[0].word in self.state.fs: self.state.fs.pop(args[0].word)
         else: print("rm: cannot remove '" + args[0].word + "': No such file or directory")
-    
+
     def f_cp(self, command, args, node):
         if len(args) == 2:
             if args[0].word in self.state.fs:

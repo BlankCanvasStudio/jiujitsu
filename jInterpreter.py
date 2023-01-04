@@ -221,8 +221,11 @@ class Interpreter():
 
     """ Prints the action stack of the interpreter """
     def stack(self, flags, *args):
-        self.env.stack()
-        return InterpreterExitStatus("SUCCESS")
+        message = 'Action Stack: ' + '\n'
+        output_array = self.env.stack().split('\n')
+        for el in output_array:
+            message += '  ' + str(el) + '\n'
+        return InterpreterExitStatus(message=message, print_out=True)
 
 
     """ Nice little parse wrapper """

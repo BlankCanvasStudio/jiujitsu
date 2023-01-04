@@ -238,4 +238,3 @@ class TestjLexer(TestCase):
         expected_tokens = [ Token(TokenType.ARG, 'arg1'), Token(TokenType.ARG, 'arg2'), 
                             Token(TokenType.ARG, 'arg3.1 "arg3.2"'), Token(TokenType.ARG, 'arg4') ]
         self.assertTrue(tokens == expected_tokens)
-
