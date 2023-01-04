@@ -4,10 +4,21 @@ from bashparse import NodeVisitor
 import copy, bashparse
 
 
+class InterpreterError(Exception):
+    pass
+
+
 class InterpreterBase():
 
-    def __init__(self, STDIO = FileSocket(id_num = 0), working_dir = '~', variables = {}, 
-                    fs = {}, open_sockets = [], truths = {}, execute = True):
+    def __init__(self, STDIO = None, working_dir = None, variables = None, 
+                    fs = None, open_sockets = None, truths = None, execute = True):
+        """ Irritating but necessary cause mutable arguments """
+        if STDIO is None: STDIO = FileSocket(id_num = 0)
+        if working_dir is None: working_dir = '~'
+        if variables is None: variables = {}
+        if fs is None: fs = {}
+        if open_sockets is None: open_sockets = []
+        if truths is None: truths = {}
 
         """ Where all the state info in help. Manipulated to allow for time travel """
         self.state = State(STDIO=STDIO, working_dir=working_dir, variables=variables, 
@@ -53,7 +64,7 @@ class InterpreterBase():
     """ Used when converting CLI state to json file """
     def json(self):
         return {**self.state.json(), **{ "execute": 't' if self.execute else 'f' }}
-    
+
 
     """ Set the working directory """
     def working_dir(self, working_dir = None):
@@ -64,58 +75,84 @@ class InterpreterBase():
     """ The following 2 functions need to be this similar to make the CLI and 
         python implementations work """
     def showState(self, showFiles = False):
-        self.state.show(showFiles=showFiles)
-        print('Action Queue Size: ', len(self.action_stack))
+        if type(showFiles) is not bool: raise InterpreterError('Error. Interpreter.showState(showFiles != bool)')
+        print(self.stateText(showFiles=showFiles))
     
     def stateText(self, showFiles = False):
+        if type(showFiles) is not bool: raise InterpreterError('Error. Interpreter.showText(showFiles != bool)')
         output = self.state.text(showFiles=showFiles) + '\n'
         output += 'Action Queue Size: ' + str(len(self.action_stack))
         return output
 
 
-    def update_file_system(self, name,  contents, permissions, location = None):
+    def update_file_system(self, name,  contents, permissions='rw-rw-rw-', location = None):
+        if type(name) is not str: raise InterpreterError('Interpreter.update_file_system(name != str)')
+        if type(contents) is not str: raise InterpreterError('Interpreter.update_file_system(contents != str)')
+        if type(permissions) is not str: raise InterpreterError('Interpreter.update_file_system(permissions != str)')
+        if location and type(location) is not str: raise InterpreterError('Interpreter.update_file_system(location != str)')
         self.state.update_file_system(name, contents, permissions, location)
 
 
     def replace(self, nodes):
+        if type(nodes) is not list: nodes = [ nodes ]
+        for node in nodes:
+            if type(node) is not bashparse.node: raise InterpreterError('Interpreter.replace() takes an array of bashparse nodes as its argument')
         return self.state.replace(nodes)
 
 
     def build(self, node, append = False):
+        if type(node) is not bashparse.node: raise InterpreterError('Interpreter.build(node != bashparse.node)')
+        if type(append) is not bool: raise InterpreterError('Interpreter.build(append != bashparse.node)')
         if not append: self.action_stack = []
         vstr = NodeVisitor(node)
         vstr.apply(self.interpreter, vstr)
 
 
     def stack(self):
-        print('Action Stack: ')
+        output = ''
         for el in self.action_stack:
-            print('  ' + str(el))
+            output += str(el) + '\n'
         if not len(self.action_stack):
-            print('Empty')
+            output += 'Empty' + '\n'
+        return output
         
 
     
     def set_variable(self, name, value):
+        if type(name) is not str: raise InterpreterError('Interpreter.set_variable(name != str)')
+        if type(value) is not list: value = [ value ]
+        for el in value: 
+            if type(el) is not str: raise InterpreterError('Interpreter.set_variable(value != str or list of str)')
         self.state.set_variable(name, value)
 
+
     def print_variables(self):
-        self.state.showVariables()
+        print(self.text_variables())
+
+
     def text_variables(self):
         return self.state.variablesText()
-    
+
+
     def print_filesystem(self, showFiles = False):
-        self.state.showFileSystem(showFiles=showFiles)
+        print(self.text_filesystem(showFiles=showFiles))
+
+
     def text_filesystem(self, showFiles = False):
         return self.state.fileSystemText(showFiles=showFiles)
-    
+
+
     def stdin(self, IN = None):
+        if IN and type(IN) is not str: raise InterpreterError('Error Interpreter.stdin(IN != str)')
         if IN is not None: self.state.STDIO.IN = IN
         return self.state.STDIO.IN
 
-    def stdout(self, IN = None):
-        if IN is not None: self.state.STDIO.OUT = IN
+
+    def stdout(self, OUT = None):
+        if OUT and type(OUT) is not str: raise InterpreterError('Error Interpreter.stdout(OUT != str)')
+        if OUT is not None: self.state.STDIO.OUT = OUT
         return self.state.STDIO.OUT
+
 
     """ The following section is everything necessary to actually run the interpreter """
 
@@ -131,6 +168,7 @@ class InterpreterBase():
 
     """ Run everything off the action stack """
     def run(self, node = None):
+        if node and type(node) is not bashparse.node: raise InterpreterError('Error. Interpreter.run(node != bashparse.node)')
         if node is not None: self.build(node)
         while len(self.action_stack): self.inch()
 
@@ -138,7 +176,7 @@ class InterpreterBase():
         for each kind of node. Does not build any of the command functions. Calls 
         InterpreterBase.run_command() to do that """
     def interpreter(self, node, vstr):
-        
+
         """ What to do when we encounter a pipeline node while traversing AST """
         if node.kind == 'pipeline':
             for i, part in enumerate(node.parts):
@@ -150,9 +188,10 @@ class InterpreterBase():
                     """ Action Queue Section """
                     vstr2 = NodeVisitor(part)
                     self.interpreter(part, vstr2)
-        
+
 
         elif node.kind == 'command':
+            node = self.replace(node)[0]
             self.run_command(node.parts[0], node.parts[1:], node)
 
 
@@ -177,7 +216,7 @@ class InterpreterBase():
                     self.interpreter(part, vstr2)
 
                 else:                       # Its a pipeline or something to that end
-                    def temp_func():
+                    def temp_func(part):
                         previous_result = self.state.STDIO.read()
                         if part.op == '||':
                             if previous_result.isnumeric() and int(previous_result) == 0:        # Rest are execute iff last aprt has non-zero return value
@@ -194,9 +233,9 @@ class InterpreterBase():
                                 print(text)
                         else:
                             raise ValueError("Op type not implemented in interpreter")
-                    action = ActionEntry(func=temp_func, text='list node transfer character: ' + part.op)
+                    action = ActionEntry(func=temp_func, text='list node transfer character: ' + part.op, args=[part])
                     self.action_stack += [ action ]
-        
+
         elif node.kind == 'for':
             # This can be formalized in a real parser way. Need to find all forms of for loop though
             parts = node.parts
@@ -206,7 +245,7 @@ class InterpreterBase():
                 self.state.update_variable_list(node)
                 action = ActionEntry(func=temp_func, text='for loop entry')
                 self.action_stack += [ action ]
-                
+
                 var_name = node.parts[1].word
                 var_values = self.state.variables[var_name]
 
@@ -214,7 +253,7 @@ class InterpreterBase():
                 parts = parts[5:]
                 while hasattr(parts[0], 'word') and (parts[0].word == 'do' or parts[0].word == ';'):
                     parts.pop(0) 
-                
+
                 # Iterate over the values in the for loop
                 for val in var_values:
                     # To initiate this iteration of the for loop
@@ -222,7 +261,7 @@ class InterpreterBase():
                         self.state.set_variable(var_name, val)
                     action = ActionEntry(func=temp_func, text='Set loop iterator value for next itr')
                     self.action_stack += [ action ]
-                    
+
                     # Push all the commands for this for loop iteration
                     for cmd in parts[:-1]: # last element is 'done'
                         # This should automatically append stuff to the action_stack so nothing really needs to be done?
@@ -245,7 +284,7 @@ class InterpreterBase():
                 if hasattr(parts[0], 'word') and parts[0].word =='then': parts.pop(0) # Remove then reserved word
                 body = parts.pop(0)
                 if parts[0].word == 'fi': parts.pop(0) # Remove the fi, if not loop
-                
+
                 # Determine truthiness
                 boolean_string = str(NodeVisitor(boolean_condition)) 
                 if boolean_string in self.truths:   # Check if user has already input the validity
@@ -272,22 +311,23 @@ class InterpreterBase():
             if command.word in self.bin:
                 """ Very cheeky dynamic programming. Hopefully it doesn't kill performance too much """
                 func = getattr(self, 'f_'+command.word)
-                def temp_func():
+                def temp_func(command, args, node):
                     func(command, args, node)
-                action = ActionEntry(func=temp_func, text='Command node: ' + command.word)
+                action = ActionEntry(func=temp_func, text='Command node: ' + command.word, args=[command, args, node])
                 self.action_stack += [ action ]
-            
-            else: 
-                resp = ''
-                while resp != 'n' and resp != 'y':
-                    resp = input('Unknown command ' + command.word + ' encouncered. Skip? (y/n)')
-                if resp == 'n':
-                    raise ValueError("Command " + command.word + " not implemented")
-                elif resp == 'y':
-                    pass
 
-                action = ActionEntry(func=self.emptyFunc, text='Unknown command: ' + command.word + '. Passing')
-                
+            else: 
+                def temp_func():
+                    resp = ''
+                    while resp != 'n' and resp != 'y':
+                        resp = input('Unknown command ' + command.word + ' encouncered. Skip? (y/n)')
+                    if resp == 'n':
+                        raise ValueError("Command " + command.word + " not implemented")
+                    elif resp == 'y':
+                        pass
+
+                action = ActionEntry(func=temp_func, text='Unknown command: ' + command.word + '. Possibly Passing')
+
                 self.action_stack += [ action ]
 
 
@@ -308,7 +348,7 @@ class InterpreterBase():
                         start = part.pos[0] - command.pos[0]
                         end = part.pos[0] - (command.pos[1] - command.pos[0])    # start + len
                         command.word = command.word[:start] + results + command.word[end:]
-                        to_remove += [ i ]
+                    to_remove += [ i ]
                     action = ActionEntry(func=temp_func, text='Resolving Command Substitution in Assignment')
                     self.action_stack += [ action ]
 

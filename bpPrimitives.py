@@ -4,12 +4,16 @@ import bashparse
 
 class ActionEntry():
 
-    def __init__(self, func, text):
+    def __init__(self, func, text, args = None):
         self.func = func
         self.text = text
+        self.args = args
 
     def __call__(self):
-        self.func()
+        if self.args is not None:
+            self.func(*self.args)
+        else:
+            self.func()
 
     def __str__(self):
         return self.text 
@@ -18,12 +22,21 @@ class ActionEntry():
         return self.__str__()
     
     def __eq__(self, other):
-        return self.text == other.text
+        return self.text == str(other)
 
 
 class State:
-    def __init__(self, STDIO = FileSocket(id_num = 0), working_dir = '~', variables = {}, 
-                    fs = {}, open_sockets = [], truths = {}):
+    def __init__(self, STDIO = None, working_dir = None, variables = None, 
+                    fs = None, open_sockets = None, truths = None):
+        """ Irritating but necessary cause mutable arguemnts  """
+        if STDIO is None: STDIO = FileSocket(id_num = 0)
+        if working_dir is None: working_dir = '~'
+        if variables is None: variables = {}
+        if fs is None: fs = {}
+        if open_sockets is None: open_sockets = []
+        if truths is None: truths = {}
+        
+        """ Type checking stuff for json importing reasons """
         if type(STDIO) is dict: STDIO = FileSocket(**STDIO)
         if type(fs) is list:    # For json importing
             new_fs = {}
@@ -32,6 +45,8 @@ class State:
             fs = new_fs
         for socket in open_sockets:
             if type(socket) is dict: socket = FileSocket(**socket)
+        
+        """ Finally actually doing the assignments """
         self.STDIO = STDIO
         self.working_dir = working_dir
         self.variables = variables
@@ -81,7 +96,7 @@ class State:
 
     """ Replace all the aliases possible in the state """
     def replace(self, nodes, replace_blanks = False):
-        return bashparse.replace_variables(nodes, self.variables)
+        return bashparse.substitute_variables(nodes, self.variables)
 
 
     """ Update the variables in the var list """
@@ -104,12 +119,7 @@ class State:
 
 
     def showVariables(self):
-        print('Variables: ')
-        for key, value in self.variables.items():
-            print('  ' + key + ': ' + value[-1])
-        if not len(self.variables):
-            print("No variables in list")
-        print()
+        print(self.variablesText() + '\n')
 
 
     def variablesText(self):
@@ -122,14 +132,7 @@ class State:
 
 
     def showFileSystem(self, showFiles = False):
-        print('File System: ')
-        for name, file in self.fs.items():
-            print('  ' + name + ' permissions: ' + str(file.permissions))
-            if showFiles:
-                print(file.contents)
-        if not len(self.fs):
-            print("No Files in the file system")
-        print()
+        print(self.fileSystemText(showFiles=showFiles) + '\n')
 
 
     def fileSystemText(self, showFiles = False):
