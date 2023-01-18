@@ -77,8 +77,11 @@ class Interpreter():
                     fs = {}, open_sockets = [], truths = {})
         self.history_stack = [ Record(env=self.env, name='init') ]
 
+        self.reverse_aliases = {}
+
         for func_name in list(self.funcs.keys()):
             if func_name[0] not in self.funcs:
+                self.reverse_aliases[func_name] = func_name[0]
                 self.funcs[func_name[0]] = self.funcs[func_name]
 
 
@@ -117,15 +120,26 @@ class Interpreter():
 
     def print_help(self, flags, *args):
         output = """
-        help:  display this message
-        load:  load a file name as a script to evaluate
-        next:  execute and step to next line in code
-        skip:  do not execute the current statement but skip it
-        state: print state of current environment
-        save:  save current state as a point in history
-        undo:  revert a state change to the last saved state
-        ...
-        """
+        Starting commands:
+            help:  display this message
+            load:  load a file name as a script to evaluate
+            next:  execute and step to next line in code
+            skip:  do not execute the current statement but skip it
+            state: print state of current environment
+            save:  save current state as a point in history
+            undo:  revert a state change to the last saved state
+            ...
+
+        Other commands:"""
+        output += "\n"
+
+        for func_name in self.funcs:
+            if func_name not in self.reverse_aliases.values():
+                output += f"             {func_name}"
+                if func_name in self.reverse_aliases:
+                    output += f" ({self.reverse_aliases[func_name]})"
+                output += "\n"
+
         return InterpreterExitStatus(message=output, print_out=True)
 
 
