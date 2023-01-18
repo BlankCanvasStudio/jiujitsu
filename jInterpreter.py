@@ -2,7 +2,7 @@
 """ Bringing the death star to a knife fight """
 import subprocess, os, stat, copy, json, re
 import bashparse
-
+import subprocess
 
 """ Import the Parser and nodes that we created/need to deal with """
 from jNode import Flag, Arg, Command
@@ -68,6 +68,7 @@ class Interpreter():
             'EXIT': self.exit,
             'TOKENIZE':self.tokenize,
             'QUIT': self.quit,
+            '!': self.system_command,
         }
         self.prog_nodes = None
         self.index = 0
@@ -494,3 +495,9 @@ class Interpreter():
     def quit(self, flags, *args):
         "Quits the interpreter"
         exit()
+
+    def system_command(self, flags, *args):
+        "Runs a (real) command on your host system.  Note that the ! must be followed by a space."
+        shell_args = [x.value for x in args]
+        subprocess.run(shell_args)
+        return InterpreterExitStatus(message="")
