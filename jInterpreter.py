@@ -67,6 +67,7 @@ class Interpreter():
             'JSON':self.json,
             'EXIT': self.exit,
             'TOKENIZE':self.tokenize,
+            'QUIT': self.quit,
         }
         self.prog_nodes = None
         self.index = 0
@@ -489,3 +490,7 @@ class Interpreter():
         for token in tokens:
             output += token.unescape()
         return InterpreterExitStatus(message=output, print_out=True)
+
+    def quit(self, flags, *args):
+        "Quits the interpreter"
+        exit()
