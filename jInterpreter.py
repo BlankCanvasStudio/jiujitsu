@@ -119,18 +119,18 @@ class Interpreter():
 
 
     def print_help(self, flags, *args):
-        output = """
-        Starting commands:
-            help:  display this message
-            load:  load a file name as a script to evaluate
-            next:  execute and step to next line in code
-            skip:  do not execute the current statement but skip it
-            state: print state of current environment
-            save:  save current state as a point in history
-            undo:  revert a state change to the last saved state
-            ...
+        output = """Commands:"""
+        
+        other_help = {
+            "HELP":  "display this message",
+            "LOAD":  "load a file name as a script to evaluate",
+            "NEXT":  "execute and step to next line in code",
+            "SKIP":  "do not execute the current statement but skip it",
+            "STATE": "print state of current environment",
+            "SAVE":  "save current state as a point in history",
+            "UNDO":  "revert a state change to the last saved state",
+        }
 
-        Other commands:"""
         output += "\n"
 
         for func_name in self.funcs:
@@ -138,6 +138,9 @@ class Interpreter():
                 output += f"             {func_name}"
                 if func_name in self.reverse_aliases:
                     output += f" ({self.reverse_aliases[func_name]})"
+                if func_name in other_help:
+                    output += ":  " + other_help[func_name]
+
                 output += "\n"
 
         return InterpreterExitStatus(message=output, print_out=True)
