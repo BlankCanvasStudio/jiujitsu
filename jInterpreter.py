@@ -43,6 +43,7 @@ class InterpreterExitStatus:
 class Interpreter():
     def __init__(self, maintain_history = True):
         self.funcs = {
+            'HELP': self.print_help,
             'LOAD': self.load,
             'NEXT': self.next, 
             'UNDO': self.undo,
@@ -104,6 +105,20 @@ class Interpreter():
                 text += arg.value + ' '
         text = text[:-1]    # last space is wrong plz remove
         return text
+
+
+    def print_help(self, flags, *args):
+        output = """
+        help:  display this message
+        load:  load a file name as a script to evaluate
+        next:  execute and step to next line in code
+        skip:  do not execute the current statement but skip it
+        state: print state of current environment
+        save:  save current state as a point in history
+        undo:  revert a state change to the last saved state
+        ...
+        """
+        return InterpreterExitStatus(message=output, print_out=True)
 
 
     """ This loads a bash file into the prog_nodes attribute to be iterated through """
