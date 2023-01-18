@@ -119,14 +119,27 @@ class Interpreter():
 
 
     def print_help(self, flags, *args):
-        output = "Commands:\n"
+        "display a list of commands, or details about a specific command if given as an argument"
+        # display help for a single function
+        if len(args) > 0:
+            cmd = args[0].value
+            if cmd.upper() not in self.funcs:
+                return InterpreterExitStatus(f"Unknown command: {cmd}", print_out=True)
 
+            if not self.funcs[cmd.upper()].__doc__:
+                output = f"no help available for {cmd}"
+            else:
+                output = cmd + " help: " + self.funcs[cmd.upper()].__doc__
+
+            return InterpreterExitStatus(message=output, print_out=True)
+
+        output = "Commands:\n"
         for func_name in self.funcs:
             if func_name not in self.reverse_aliases.values():
                 output += f"             {func_name}"
                 if func_name in self.reverse_aliases:
                     output += f" ({self.reverse_aliases[func_name]})"
-                elif self.funcs[func_name].__doc__:
+                if self.funcs[func_name].__doc__:
                     docstr = self.funcs[func_name].__doc__
                     output += ": " + docstr[:docstr.find("\n")]
 
@@ -144,7 +157,12 @@ class Interpreter():
 
 
     def next(self, flags, *args):
-        """ Executes the next command in the node list. -e means the command should execute in surrounding env """
+        """ Executes the next command in the node list.
+        Optional flags:
+        -i inch forward
+        -e execute in surrounding env
+        -p print the state of the system afterward
+        -h save state in the history"""
         def get_next_node():
             # if self.prog_nodes is None or len(self.prog_nodes) == 0: return None
             if self.index > len(self.prog_nodes) - 1: return None
