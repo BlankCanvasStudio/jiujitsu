@@ -86,6 +86,10 @@ class Interpreter():
             prog = self.parser.parse(cmd)       # Parse the nodes and get the ast
             for cmd in prog.commands:           # Iterate over command nodes in the ast and execute them
                 try:
+                    func_name = cmd.func.upper()
+                    if func_name not in cmd.func():
+                        print(f"unknown command: {func_name}")
+                        continue
                     func = self.funcs[cmd.func.upper()]     # Try to find the command in the cmd dict to execute
                 except:                                     # Do nothing if its not found. Exiting the shell is annoying
                     print('Unknown Judo Command: ', cmd.func.upper())
