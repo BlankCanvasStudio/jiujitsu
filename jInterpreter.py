@@ -276,7 +276,7 @@ class Interpreter():
             nodes = bashparse.parse(text)
             for node in nodes:
                 print(node.dump())
-        
+
             return InterpreterExitStatus("SUCCESS")
 
         except:

@@ -66,3 +66,6 @@ class Interpreter(InterpreterBase):
         if len(args) == 2:
             if args[0].word in self.state.fs:
                 self.state.fs[args[1].word] = self.state.fs[args[0].word]
+    
+    def f_mv(self, command, args, node):
+        pass
