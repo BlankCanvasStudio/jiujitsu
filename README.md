@@ -27,7 +27,7 @@ Takes a single argument of a bash file you wish to step through. Loading the fil
 
 ## NEXT
 
-Runs the next line of the bash file which you previously loaded. Using the -e flag WILL RUN THE COMMAND ON THE HOST SYSTEM WITHOUT PROTECTION (it will replace it as much as possble). Using the -i flag will allow the user call 'inch' (see below) to step through the command in detail.
+Runs the next line of the bash file which you previously loaded. Using the -e flag WILL RUN THE COMMAND ON THE HOST SYSTEM WITHOUT PROTECTION (it will replace it as much as possble). Using the -i flag will allow the user call 'inch' (see below) to step through the command in detail. Using the -p flag will print the state after the 
 
 <br/>
 

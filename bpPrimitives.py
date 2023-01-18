@@ -95,8 +95,8 @@ class State:
 
 
     """ Replace all the aliases possible in the state """
-    def replace(self, nodes, replace_blanks = False):
-        return bashparse.substitute_variables(nodes, self.variables)
+    def replace(self, nodes, replace_blanks = True):
+        return bashparse.substitute_variables(nodes, self.variables, replace_blanks=replace_blanks)
 
 
     """ Update the variables in the var list """
@@ -125,7 +125,7 @@ class State:
     def variablesText(self):
         output = 'Variables: \n'
         for key, value in self.variables.items():
-            output += '  ' + key + ': ' + value[-1]
+            output += '  ' + key + ': ' + value[-1] + '\n'
         if not len(self.variables):
             output += "No variables in list\n"
         return output

@@ -117,7 +117,6 @@ class InterpreterBase():
         return output
         
 
-    
     def set_variable(self, name, value):
         if type(name) is not str: raise InterpreterError('Interpreter.set_variable(name != str)')
         if type(value) is not list: value = [ value ]

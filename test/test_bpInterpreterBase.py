@@ -102,6 +102,13 @@ class TestBpInterpreterBase(TestCase):
         replaced = intr.replace(node)
         self.assertTrue(replaced[0] == bashparse.parse('echo two')[0])
 
+        intr = InterpreterBase(variables={})
+        node = bashparse.parse("a=$b")
+        replaced = intr.replace(node)
+        self.assertTrue(replaced[0] == bashparse.parse('a=')[0])
+
+
+
 
     def test_build(self):
         intr = Full_Interpreter()               # Need to use full interpreter so echo command is known
