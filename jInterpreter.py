@@ -77,6 +77,10 @@ class Interpreter():
                     fs = {}, open_sockets = [], truths = {})
         self.history_stack = [ Record(env=self.env, name='init') ]
 
+        for func_name in list(self.funcs.keys()):
+            if func_name[0] not in self.funcs:
+                self.funcs[func_name[0]] = self.funcs[func_name]
+
 
     """ How to CLI is actually called in python """
     def listen(self):
@@ -87,7 +91,7 @@ class Interpreter():
             for cmd in prog.commands:           # Iterate over command nodes in the ast and execute them
                 try:
                     func_name = cmd.func.upper()
-                    if func_name not in cmd.func():
+                    if func_name not in self.funcs:
                         print(f"unknown command: {func_name}")
                         continue
                     func = self.funcs[cmd.func.upper()]     # Try to find the command in the cmd dict to execute
