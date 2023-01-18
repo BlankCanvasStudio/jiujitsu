@@ -119,43 +119,32 @@ class Interpreter():
 
 
     def print_help(self, flags, *args):
-        output = """Commands:"""
-        
-        other_help = {
-            "HELP":  "display this message",
-            "LOAD":  "load a file name as a script to evaluate",
-            "NEXT":  "execute and step to next line in code",
-            "SKIP":  "do not execute the current statement but skip it",
-            "STATE": "print state of current environment",
-            "SAVE":  "save current state as a point in history",
-            "UNDO":  "revert a state change to the last saved state",
-        }
-
-        output += "\n"
+        output = "Commands:\n"
 
         for func_name in self.funcs:
             if func_name not in self.reverse_aliases.values():
                 output += f"             {func_name}"
                 if func_name in self.reverse_aliases:
                     output += f" ({self.reverse_aliases[func_name]})"
-                if func_name in other_help:
-                    output += ":  " + other_help[func_name]
+                elif self.funcs[func_name].__doc__:
+                    docstr = self.funcs[func_name].__doc__
+                    output += ": " + docstr[:docstr.find("\n")]
 
                 output += "\n"
 
         return InterpreterExitStatus(message=output, print_out=True)
 
 
-    """ This loads a bash file into the prog_nodes attribute to be iterated through """
     def load(self, flags, *args):
+        """ This loads a bash file into the prog_nodes attribute to be iterated through """
         filename = args[0].value
         self.prog_nodes = bashparse.parse(open(filename).read())
         self.index = 0
         return InterpreterExitStatus("SUCCESS")
 
 
-    """ Executes the next command in the node list. -e means the command should execute in surrounding env """
     def next(self, flags, *args):
+        """ Executes the next command in the node list. -e means the command should execute in surrounding env """
         def get_next_node():
             # if self.prog_nodes is None or len(self.prog_nodes) == 0: return None
             if self.index > len(self.prog_nodes) - 1: return None
@@ -184,8 +173,8 @@ class Interpreter():
         return InterpreterExitStatus("SUCCESS")
         
 
-    """ Undoes any action taken in the environment. Can't undo if it exited the env though """
     def undo(self, flags, *args):
+        """ Undoes any action taken in the environment. Can't undo if it exited the env though """
         if len(self.history_stack) > 1:                     # Roll back if possible
             self.history_stack = self.history_stack[:-1]
             self.env = self.history_stack[-1].env
@@ -197,14 +186,14 @@ class Interpreter():
         return InterpreterExitStatus("SUCCESS")
 
 
-    """ Move passed a node if the user doesn't care about it """
     def skip(self, flags, *args):
+        """ Move passed a node if the user doesn't care about it """
         self.index = self.index + 1
         return InterpreterExitStatus("SUCCESS")
 
 
-    """ Allows the user to create custom points in the history """
     def save(self, flags, *args):
+        """ Allows the user to create custom points in the history """
         if not len(args):
             return InterpreterExitStatus("Must specify a name for your save point. \nNothing was saved", status = 1)
 
@@ -214,16 +203,16 @@ class Interpreter():
         return InterpreterExitStatus("SUCCESS")
 
 
-    """  """
     def inch(self, flags, *args):
+        """DOCS TBD  """
         res = self.env.inch()
         if not res:
             return InterpreterExitStatus("Action Stack is empty. Please run build or next/run -i to load the action stack", status = 1)
         return InterpreterExitStatus("SUCCESS")
 
-    """ Run a user input command by combining the args into a command and executing it. 
-        All commands must also be run in env to maintain consistency. -i is a wrapper for build """
     def run(self, flags, *args):
+        """ Run a user input command by combining the args into a command and executing it. 
+        All commands must also be run in env to maintain consistency. -i is a wrapper for build """
         text = self.args_to_str(args)
 
         if self.maintain_history or Flag('h') in flags:
@@ -259,8 +248,8 @@ class Interpreter():
             return InterpreterExitStatus(message="Bashparse cannot parse the code provided", status=1)
 
 
-    """ Prints the action stack of the interpreter """
     def stack(self, flags, *args):
+        """ Prints the action stack of the interpreter """
         message = 'Action Stack: ' + '\n'
         output_array = self.env.stack().split('\n')
         for el in output_array:
@@ -268,8 +257,8 @@ class Interpreter():
         return InterpreterExitStatus(message=message, print_out=True)
 
 
-    """ Nice little parse wrapper """
     def parse(self, flags, *args):
+        """ Nice little parse wrapper """
         text = self.args_to_str(args)
 
         try:
@@ -283,9 +272,9 @@ class Interpreter():
             return InterpreterExitStatus("Bashparse could not parse text", status = 1)
 
 
-    """ Writes the specified command into an executable file and runs it. 
-        Then it prints the results """
     def syscall(self, bashCommand):
+        """ Writes the specified command into an executable file and runs it. 
+        Then it prints the results """
         if type(bashCommand) is not str: return InterpreterExitStatus("Interpreter.syscall takes only a single text argument", status=1)
         """ Replace all the nodes using the environment """
         nodes = self.env.replace(bashparse.parse(bashCommand))
@@ -304,8 +293,8 @@ class Interpreter():
         return InterpreterExitStatus("SUCCESS")
 
 
-    """ Deals with the printing and modificaiton of the interpreters working directory """
     def dir(self, flags, *args):
+        """ Deals with the printing and modificaiton of the interpreters working directory """
         if len(args) == 1:
             self.env.working_dir(args[0].value)
             return InterpreterExitStatus(message = 'Working dir: ' + self.env.working_dir(), 
@@ -315,8 +304,8 @@ class Interpreter():
         
 
 
-    """ For maintaining the STDIN for the current env """
     def stdin(self, flags, *args):
+        """ For maintaining the STDIN for the current env """
         arg_text = self.args_to_str(args)
         if len(args):
             self.env.stdin(arg_text)
@@ -324,8 +313,8 @@ class Interpreter():
                     status=0, print_out=True)
 
 
-    """ For maintaining the STDOUT for the current env """
     def stdout(self, flags, *args):
+        """ For maintaining the STDOUT for the current env """
         arg_text = self.args_to_str(args)
         if len(args):
             self.env.stdout(arg_text)
@@ -333,8 +322,8 @@ class Interpreter():
                     status=0, print_out=True)
 
 
-    """ For maintaining the variables in the current env """
     def var(self, flags, *args):
+        """ For maintaining the variables in the current env """
         if len(args):
             """ Save the name:value combo from args until args is empty """
             while len(args) >= 3 and args[1] == Arg(':'):    # Man I hate this implementation
@@ -379,20 +368,20 @@ class Interpreter():
 
         return InterpreterExitStatus("SUCCESS")
 
-    """ Implementation of the state function. Prints if the -p flag is passed in """
     def state(self, flags, *args):
+        """ Implementation of the state function. Prints if the -p flag is passed in """
         output = '\n' + self.env.stateText()
         return InterpreterExitStatus(message=output, print_out=True)
 
 
-    """ Nicely exits the CLI """
     def exit(self, flags, *args):
+        """ Nicely exits the CLI """
         self.listening = False
         return InterpreterExitStatus("SUCCESS")
     
 
-    """ Imports / Exports the state to a JSON file """
     def json(self, flags, *args):
+        """ Imports / Exports the state to a JSON file """
         if len(args) != 1: 
             return InterpreterExitStatus("Wrong # of arguments. 1 filename must be specified", status = 1)
 
@@ -417,14 +406,14 @@ class Interpreter():
         else:
             return InterpreterExitStatus('Please specify -i or -e', status = 2)
 
-    """ A simple function to not execute anything. Might be unnecessary but it exists """
     def void(self, flags, *args):
+        """ A simple function to not execute anything. Might be unnecessary but it exists """
         return InterpreterExitStatus("SUCCESS")
 
 
-    """ How the judo interpreter handles history. Creates a new bpInterpreter with a copy of the
-        old state so it can be updated. Could move the history maintanace to the bpInterpreter instead """
     def save_state(self, name = None, action = None):
+        """ How the judo interpreter handles history. Creates a new bpInterpreter with a copy of the
+        old state so it can be updated. Could move the history maintanace to the bpInterpreter instead """
         if name is None: name = str(len(self.history_stack))
         new_env = copy.deepcopy(self.env)
         self.history_stack += [ Record(env=new_env, name=name, action=action) ]
@@ -433,9 +422,9 @@ class Interpreter():
         
     
 
-    """ Implementation of the history command. Prints the history if -p is passed in.
-        on/off/toggle will change if history is changed or not """
     def history(self, flags, *args):
+        """ Implementation of the history command. Prints the history if -p is passed in.
+        on/off/toggle will change if history is changed or not """
         to_return = InterpreterExitStatus("SUCCESS")
         if Flag('p') in flags or len(flags) == 0:
             output = '\n' + "History" + '\n'
@@ -454,10 +443,10 @@ class Interpreter():
         return to_return
     
 
-    """ How the interpreter handles the alias command. When its run, the command is passed to 
+    def alias(self, flags, *args):
+        """ How the interpreter handles the alias command. When its run, the command is passed to 
         the lexer so it will sub the command with the string passed in in the args. Last arg is the 
         name of the alias """
-    def alias(self, flags, *args):
         to_return = InterpreterExitStatus("SUCCESS")
         if Flag('p') in flags:
             output = ''
@@ -473,8 +462,8 @@ class Interpreter():
         return to_return
 
 
-    """ Exists for debugging, not listed in docs or test cause not suppoed to be public """
     def tokenize(self, flags, *args):
+        """ Exists for debugging, not listed in docs or test cause not suppoed to be public """
         new_lex = copy.copy(self.parser.lexer)
         new_lex.new(self.args_to_str(args))
         tokens = new_lex.get_all_tokens()
