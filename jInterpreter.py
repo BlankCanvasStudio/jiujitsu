@@ -4,6 +4,8 @@ import subprocess, os, stat, copy, json, re
 import bashparse
 import subprocess
 import traceback
+import cmd
+import inspect
 
 """ Import the Parser and nodes that we created/need to deal with """
 from jNode import Flag, Arg, Command
@@ -45,10 +47,11 @@ class InterpreterExitStatus:
 
 """ All the functional sections of the interpreter. 
     All node manipulation parts in InterpreterBase """
-class Interpreter():
+class Interpreter(cmd.Cmd):
     def __init__(self, maintain_history = True):
+        cmd.Cmd.__init__(self, 'tab')
         self.funcs = {
-            'HELP': self.print_help,
+            'HELP': self.do_help,
             'LOAD': self.load,
             'NEXT': self.next, 
             'UNDO': self.undo,
@@ -91,34 +94,48 @@ class Interpreter():
                 self.reverse_aliases[func_name] = func_name[0]
                 self.funcs[func_name[0]] = self.funcs[func_name]
 
+        self.do_next = self.handle_cmd
 
-    """ How to CLI is actually called in python """
-    def listen(self):
-        print('Welcome to the Judo shell')
-        while self.listening:
+    def handle_cmd(self, cmd):
+        prog = self.parser.parse(cmd)       # Parse the nodes and get the ast
+        for cmd in prog.commands:           # Iterate over command nodes in the ast and execute them
             try:
-                cmd = input(r'> ')                  # Get the text from the user
-                prog = self.parser.parse(cmd)       # Parse the nodes and get the ast
-                for cmd in prog.commands:           # Iterate over command nodes in the ast and execute them
-                    try:
-                        func_name = cmd.func.upper()
-                        if func_name not in self.funcs:
-                            print(f"unknown command: {func_name}")
-                            continue
-                        func = self.funcs[cmd.func.upper()]     # Try to find the command in the cmd dict to execute
-                    except:                                     # Do nothing if its not found. Exiting the shell is annoying
-                        print('Unknown Judo Command: ', cmd.func.upper())
-                        print('Nothing was changed')
-                        break
-                    exit_code = func(cmd.flags, *cmd.args)                  # Call the function if it was found
+                func_name = cmd.func.upper()
+                if func_name not in self.funcs:
+                    print(f"unknown command: {func_name}")
+                    continue
+                func = self.funcs[cmd.func.upper()]     # Try to find the command in the cmd dict to execute
+            except:                                     # Do nothing if its not found. Exiting the shell is annoying
+                print('Unknown Judo Command: ', cmd.func.upper())
+                print('Nothing was changed')
+                break
+            exit_code = func(cmd.flags, *cmd.args)                  # Call the function if it was found
 
-                    exit_code.print()
+            exit_code.print()
+
+    def default(self, line):
+        self.handle_cmd(line)
+
+
+    def do_functtt(self, arg):
+        "someting or other"
+        raise ValueError("bogus")
+
+    def listen(self):
+        """ How to CLI is actually called in python """
+        print('Welcome to the Judo shell')
+        self.prompt = "Judo> "
+        while True:
+            try:
+                self.cmdloop()
+
             except Exception as e:
                 print(f"Exception {e} thrown!")
                 print(traceback.format_exc())
 
-    """ Converts arguments to strings. A necessary wrapper cause escape characters """
+
     def args_to_str(self, args, unescape=False):
+        """ Converts arguments to strings. A necessary wrapper cause escape characters """
         text = ''
         for arg in args:
             if unescape:
@@ -129,11 +146,11 @@ class Interpreter():
         return text
 
 
-    def print_help(self, flags, *args):
+    def do_help(self, arg):
         "display a list of commands, or details about a specific command if given as an argument"
         # display help for a single function
-        if len(args) > 0:
-            cmd = args[0].value
+        if arg:
+            cmd = arg
             if cmd.upper() not in self.funcs:
                 return InterpreterExitStatus(f"Unknown command: {cmd}", print_out=True)
 
@@ -142,7 +159,8 @@ class Interpreter():
             else:
                 output = cmd + " help: " + self.funcs[cmd.upper()].__doc__
 
-            return InterpreterExitStatus(message=output, print_out=True)
+            print(output)
+            return
 
         output = "Commands:\n"
         for func_name in self.funcs:
@@ -156,8 +174,7 @@ class Interpreter():
 
                 output += "\n"
 
-        return InterpreterExitStatus(message=output, print_out=True)
-
+        print(output)
 
     def load(self, flags, *args):
         """ This loads a bash file into the prog_nodes attribute to be iterated through """
