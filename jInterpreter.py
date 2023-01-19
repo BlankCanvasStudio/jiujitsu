@@ -3,6 +3,7 @@
 import subprocess, os, stat, copy, json, re
 import bashparse
 import subprocess
+import traceback
 
 """ Import the Parser and nodes that we created/need to deal with """
 from jNode import Flag, Arg, Command
@@ -91,22 +92,26 @@ class Interpreter():
     def listen(self):
         print('Welcome to the Judo shell')
         while self.listening:
-            cmd = input(r'> ')                  # Get the text from the user
-            prog = self.parser.parse(cmd)       # Parse the nodes and get the ast
-            for cmd in prog.commands:           # Iterate over command nodes in the ast and execute them
-                try:
-                    func_name = cmd.func.upper()
-                    if func_name not in self.funcs:
-                        print(f"unknown command: {func_name}")
-                        continue
-                    func = self.funcs[cmd.func.upper()]     # Try to find the command in the cmd dict to execute
-                except:                                     # Do nothing if its not found. Exiting the shell is annoying
-                    print('Unknown Judo Command: ', cmd.func.upper())
-                    print('Nothing was changed')
-                    break
-                exit_code = func(cmd.flags, *cmd.args)                  # Call the function if it was found
+            try:
+                cmd = input(r'> ')                  # Get the text from the user
+                prog = self.parser.parse(cmd)       # Parse the nodes and get the ast
+                for cmd in prog.commands:           # Iterate over command nodes in the ast and execute them
+                    try:
+                        func_name = cmd.func.upper()
+                        if func_name not in self.funcs:
+                            print(f"unknown command: {func_name}")
+                            continue
+                        func = self.funcs[cmd.func.upper()]     # Try to find the command in the cmd dict to execute
+                    except:                                     # Do nothing if its not found. Exiting the shell is annoying
+                        print('Unknown Judo Command: ', cmd.func.upper())
+                        print('Nothing was changed')
+                        break
+                    exit_code = func(cmd.flags, *cmd.args)                  # Call the function if it was found
 
-                exit_code.print()
+                    exit_code.print()
+            except Exception as e:
+                print(f"Exception {e} thrown!")
+                print(traceback.format_exc())
 
     """ Converts arguments to strings. A necessary wrapper cause escape characters """
     def args_to_str(self, args, unescape=False):
