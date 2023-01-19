@@ -76,7 +76,6 @@ class Interpreter(cmd.Cmd):
             'EXIT': self.exit,
             'TOKENIZE':self.tokenize,
             'QUIT': self.quit,
-            '!': self.system_command,
         }
         self.prog_nodes = None
         self.index = 0
@@ -522,8 +521,8 @@ class Interpreter(cmd.Cmd):
         "Quits the interpreter"
         exit()
 
-    def system_command(self, flags, *args):
+    def do_shell(self, arg):
         "Runs a (real) command on your host system.  Note that the ! must be followed by a space."
-        shell_args = [x.value for x in args]
+        shell_args = arg.split()
         subprocess.run(shell_args)
         return InterpreterExitStatus(message="")
