@@ -242,7 +242,7 @@ class InterpreterBase():
                 """ Action Queue Section """
                 # Save the iterator to the variable list 
                 self.state.update_variable_list(node)
-                action = ActionEntry(func=temp_func, text='for loop entry')
+                action = ActionEntry(func=self.emptyFunc, text='for loop entry')
                 self.action_stack += [ action ]
 
                 var_name = node.parts[1].word
@@ -269,7 +269,7 @@ class InterpreterBase():
 
                 # Remove the iterator after the for loop exits
                 self.state.variables.pop(var_name)
-                action = ActionEntry(func=self.emptyFunc, textaction_queue='Exit for loop')
+                action = ActionEntry(func=self.emptyFunc, text='Exit for loop')
                 self.action_stack += [ action ]
 
 
