@@ -41,7 +41,7 @@ class Interpreter(InterpreterBase):
             file_contents = open(filename).read()
             self.update_file_system(name='index.html', contents=file_contents, permissions='rw-rw-rw-')
         else:
-            raise ValueError("Invalid URL to wget")
+            raise ValueError(f"Invalid URL to wget: {args[0].word}")
 
     def f_chmod(self, command, args, node):
         if args[0].word == '+x':
