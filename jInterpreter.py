@@ -12,6 +12,10 @@ from jRecord import Record
 from bpFileSystem import FileSocket
 from bpInterpreter import Interpreter as bpInterpreter
 
+try:
+    from rich import print
+except Exception:
+    pass
 
 class InterpreterExitStatus:
     def __init__(self, message, status = 0, print_out=False):
