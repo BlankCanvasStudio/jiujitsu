@@ -13,7 +13,7 @@ def parse_args():
     "Parse the command line arguments."
     parser = ArgumentParser(formatter_class=ArgumentDefaultsHelpFormatter,
                             description=__doc__,
-                            epilog="Exmaple Usage: ")
+                            epilog="Exmaple Usage: run.py SCRIPT.sh")
 
     parser.add_argument("--log-level", "--ll", default="info",
                         help="Define the logging verbosity level (debug, info, warning, error, fotal, critical).")
