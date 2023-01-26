@@ -27,6 +27,10 @@ class Arg(AST):
     def __eq__(self, other):
         if type(other) is not Arg: return False 
         return other.value == self.value
+    def unescape(self):
+        text = self.value.replace('\\', "\\\\").replace('\"', "\\\"").replace('\t', '\\t').replace('\n', '\\n')
+        if self.quoted: text = '"' + text + '"'
+        return text
 
 
 class Command(AST):

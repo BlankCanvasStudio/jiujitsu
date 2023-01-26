@@ -33,25 +33,9 @@ def main():
 
     cli = Interpreter()
     if args.input_script:
-        cli.load([], Arg(args.input_script))
-    cli.listen()
-
+        cli.load(args.input_script)
+    cli.cmdloop()
 
 
 if __name__ == "__main__":
     main()
-
-
-
-# helpful example text
-"""
-from jLexer import Lexer
-from jToken import Token, TokenType
-
-lex = Lexer('run \"echo hello world\"')
-token = lex.get_next_token()
-while token != Token(type_in=TokenType.EOF, value=None):
-    print(token)
-    token = lex.get_next_token()
-"""
-
