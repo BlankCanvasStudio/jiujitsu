@@ -13,9 +13,6 @@ from jRecord import Record
 
 
 
-
-
-
 class Interpreter(cmd.Cmd):
 
     def __init__(self, maintain_history = True):
@@ -30,8 +27,21 @@ class Interpreter(cmd.Cmd):
         self.alias_table = {}
     
 
-    """ Converts arguments to strings. A necessary wrapper cause escape characters """
+    def default(self, line):
+        cmd, arg, line = self.parseline(line)
+        if cmd in self.alias_table:
+            new_line = self.alias_table[cmd] + arg
+            self.onecmd(new_line)
+        else:
+            print("Invalid command: " + cmd)
+    
+
+    def postcmd(self, stop, line):
+        print()
+
+
     def args_to_str(self, args, unescape=False):
+        """ Converts arguments to strings. A necessary wrapper cause escape characters """
         text = ''
         for arg in args:
             if unescape:
@@ -49,11 +59,6 @@ class Interpreter(cmd.Cmd):
         new_env = copy.deepcopy(self.env)
         self.history_stack += [ Record(env=new_env, name=name, action=action) ]
         self.env = new_env
-
-
-    def postcmd(self, stop, line):
-        print()
-
 
     def do_load(self, filename):
         """ Loads a file to be iterated through with either next or inch commands 
@@ -158,7 +163,6 @@ class Interpreter(cmd.Cmd):
         nodes = bashparse.parse(cmd)
         for node in nodes:
             self.env.run(node)
-
 
         
     def do_build(self, text):
@@ -355,15 +359,7 @@ class Interpreter(cmd.Cmd):
             alias_name = args[0].value
             alias_text = self.args_to_str(args[1:])
             self.alias_table[alias_name] = alias_text
-    
-    
-    def default(self, line):
-        cmd, arg, line = self.parseline(line)
-        if cmd in self.alias_table:
-            new_line = self.alias_table[cmd] + arg
-            self.onecmd(new_line)
-        else:
-            print("Invalid command: " + cmd)
+
 
 
 if __name__ == '__main__':
