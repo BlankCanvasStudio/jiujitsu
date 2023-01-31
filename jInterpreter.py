@@ -1,4 +1,4 @@
-import cmd, subprocess, os, stat, copy, json, re, inspect
+import cmd, subprocess, os, stat, copy, json, re, inspect, pathlib
 import bashparse
 try:
     from rich import print
@@ -15,7 +15,7 @@ from jRecord import Record
 
 class Interpreter(cmd.Cmd):
 
-    def __init__(self, maintain_history = True):
+    def __init__(self, maintain_history = True, config_file = '~/.judo_config'):
         cmd.Cmd.__init__(self, 'tab')
         self.parser = Parser()
         self.prog_nodes = None
@@ -25,6 +25,7 @@ class Interpreter(cmd.Cmd):
                     fs = {}, open_sockets = [], truths = {})
         self.history_stack = [ Record(env=self.env, name='init') ]
         self.alias_table = {}
+        self.import_config(config_file)
     
 
     def default(self, line):
@@ -51,6 +52,15 @@ class Interpreter(cmd.Cmd):
         text = text[:-1]    # last space is wrong plz remove
         return text
     
+
+    def import_config(self, config_file = "~/.judo_config"):
+        path = pathlib.Path(config_file)
+        path = path.expanduser()
+        if path.is_file():
+            with open(path) as config_file:
+                new_line = config_file.readline()
+                self.onecmd(new_line)
+
 
     def save_state(self, name = None, action = None):
         """ How the judo interpreter handles history. Creates a new bpInterpreter with a copy of the
