@@ -52,7 +52,7 @@ class State:
         self.variables = variables
         self.fs = fs
         self.open_sockets = open_sockets
-        self.truths = truths
+        self.truths = truths 
 
 
     def __eq__(self, other):
@@ -90,7 +90,15 @@ class State:
     """ Update or create a file in the fs """
     def update_file_system(self, name,  contents, permissions='rw-rw-rw-', location = None):
         if location is None: location = self.working_dir
-        name = location + '/' + name if location[-1] != '/' else location + name
+        # verify if path is absolute or not
+        if not (name[0] == '~' or name[0] == '/'):
+            if name[0:2] == './':
+                name = name[2:]
+            name = location + '/' + name
+        # remove trailing slash
+        if name[-1] == '/':
+            name = name[:-1]
+        # Actually update the file system
         self.fs[name] = File(name=name, contents=contents, permissions=permissions)
 
 
@@ -108,6 +116,19 @@ class State:
     def update_variable_list(self, node):
         self.variables = bashparse.update_variable_list(node, self.variables)
 
+
+    def set_truth(self, name, value):
+        if type(name) is not str: name = str(name)
+        if type(value) is not bool: value = bool(value)
+        self.truths[name] = value
+
+
+    def test_truth(self, name):
+        if type(name) is not str: name = str(name)
+        if name not in self.truths:
+            return None
+        else:
+            return self.truths[name]
 
     def json(self):
         open_socket_array = [ x.json() for x in self.open_sockets ]

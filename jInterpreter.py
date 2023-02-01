@@ -20,12 +20,14 @@ class Interpreter(cmd.Cmd):
         self.parser = Parser()
         self.prog_nodes = None
         self.index = 0
-        self.maintain_history = maintain_history
+        self.config_file = config_file
         self.env = bpInterpreter(STDIO = FileSocket(id_num = 0), working_dir = '~', variables = {}, 
                     fs = {}, open_sockets = [], truths = {})
         self.history_stack = [ Record(env=self.env, name='init') ]
         self.alias_table = {}
+        self.maintain_history = maintain_history
         self.import_config(config_file)
+        
     
 
     def default(self, line):
@@ -54,12 +56,16 @@ class Interpreter(cmd.Cmd):
     
 
     def import_config(self, config_file = "~/.judo_config"):
-        path = pathlib.Path(config_file)
-        path = path.expanduser()
+        maintain_history = self.maintain_history      # So anything run in the config file doesn't generate a bunch of hist unless you specify
+        self.maintain_history = False
+        path = pathlib.Path(config_file).expanduser()
         if path.is_file():
             with open(path) as config_file:
-                new_line = config_file.readline()
-                self.onecmd(new_line)
+                for new_line in config_file:
+                    self.onecmd(new_line)
+        else:
+            print('config file:', config_file, 'not found')
+        self.maintain_history = maintain_history
 
 
     def save_state(self, name = None, action = None):
@@ -69,6 +75,7 @@ class Interpreter(cmd.Cmd):
         new_env = copy.deepcopy(self.env)
         self.history_stack += [ Record(env=new_env, name=name, action=action) ]
         self.env = new_env
+
 
     def do_load(self, filename):
         """ Loads a file to be iterated through with either next or inch commands 
@@ -130,6 +137,7 @@ class Interpreter(cmd.Cmd):
             self.env = bpInterpreter()
             self.history_stack = [ Record(env=self.env, name='init') ]
             self.index = 0
+            self.import_config(self.config_file)
 
 
     def do_skip(self, text):
@@ -320,7 +328,7 @@ class Interpreter(cmd.Cmd):
         on/off/toggle will change if history is saved automatically or not """
         flags, args = self.parser.parse(text)
 
-        if Flag('p') in flags or len(flags) == 0:
+        if Flag('p') in flags or (len(flags) == 0 and len(args) == 0):
             output = '\n' + "History" + '\n'
             if len(self.history_stack):
                 for record in self.history_stack: output += record.text(showFiles = False)
@@ -335,9 +343,77 @@ class Interpreter(cmd.Cmd):
             self.maintain_history = not self.maintain_history
 
 
-    def do_quit(self, flags, *args):
+    def do_quit(self, text):
         "Quits the interpreter"
         exit()
+
+
+    def do_env(self, text):
+        """ Used to switch environments or create environment files.
+                Format: env -ea <filename>
+                -e flag exports the environment file to the specified filename. If no file is specified, ~/.judo_config is overwritten
+                -a appends the environment changes to the current environment, leaving currently defined variables in tack
+                 """
+        flags, args = self.parser.parse(text)
+
+        if Flag('a') in flags: # Append to the state
+            self.import_config(self.args_to_str(args))
+        elif Flag('e') in flags:
+            # This needs to export the path to a file
+            output_text = ''
+            
+            # Need to do alias table
+            for key, value in self.alias_table.items():
+                output_text += 'alias ' + str(key) + ':' + str(value) + '\n'
+
+            # Need to do interpreter itself
+            output_text += 'stdin ' + self.env.stdin() + '\n'
+            output_text += 'stdout ' + self.env.stdout() + '\n'
+            output_text += 'dir ' + self.env.working_dir() + '\n'
+            for key, value in self.env.state.variables.items():
+                output_text += 'var ' + str(key) + ':' + ' '.join(value) + '\n'
+            for value in self.env.state.fs.values():
+                output_text += 'fs ' + value.name + ':' + value.contents + ':' + value.permissions + '\n'
+            for key, value in self.env.state.truths.items():
+                output_text += 'truth ' + str(key) + ':' + str(value) + '\n'
+
+            # Put this last so it doesn't save a nunch of history by accident
+            output_text += 'history on\n' if self.maintain_history else 'history off\n'
+
+            filename = self.args_to_str(args)
+            fd = open(filename, 'w')
+            fd.write(output_text)
+
+        else:
+            self.__init__(config_file=self.args_to_str(args))
+
+
+    def do_truth(self, text):
+        """ Allows the user to assert statements to be true or false using the format <statement>:<bool>. 
+            Useful for print statements
+                Use the -p flag to print all current truths """
+        flags, args = self.parser.parse(text)
+
+        if Flag('p') in flags:
+            for key, value in self.env.state.truths.items():
+                print(key + ':' + str(value))
+            if len(self.env.state.truths) == 0:
+                print('No truths yet')
+
+        old_truth = copy.copy(self.env.state.truths)
+        while len(args):
+            if len(args) < 3 or args[1] != Arg(':'):
+                print('Invalid format for truth command. please use format truth <statement>:<Bool>')
+                self.env.state.truths = old_truth
+                return
+            try:
+                self.env.set_truth(args[0].value, args[2].value)
+            except Exception as e:
+                print(e)
+                print('Invalid format for truth command. please use format truth <statement>:<bool>')
+                self.env.state.truths = old_truth
+                return
+            args = args[3:]
 
 
     def do_tokenize(self, text):

@@ -133,6 +133,34 @@ class InterpreterBase():
         return self.state.variablesText()
 
 
+    def set_truth(self, name, value):
+        if type(name) is not str: raise InterpreterError('Interpreter.set_truth(name != str)')
+        if type(value) is not bool and type(value) is not str: 
+            raise InterpreterError('Interpreter.set_truth(value != str and value != bool)')
+        if type(value) is not bool: 
+            truths = ['t', 'true']
+            value = value.lower() in truths
+        self.state.set_truth(name, value)
+
+
+    def test_truth(self, name):
+        if type(name) is not str: raise InterpreterError('Interpreter.set_truth(name != str)')
+        value = self.state.test_truth(name)
+        if value is None:
+            print('Truth '+ name + ' not in truth dictionary. Add it?')
+            resp = ''
+            while resp != 'n' and resp != 'y':
+                resp = input('(y/n)')
+            if resp == 'n':
+                raise InterpreterError('InterpreterBase.test_truth is unknown and user refused to add.')
+            elif resp == 'y':
+                while resp != 't' and resp != 'f':
+                    resp = input('Enter t or f')
+                self.set_truth(name, resp == 't')
+                value = resp == 't'
+        return value
+
+
     def print_filesystem(self, showFiles = False):
         print(self.text_filesystem(showFiles=showFiles))
 
@@ -286,13 +314,13 @@ class InterpreterBase():
 
                 # Determine truthiness
                 boolean_string = str(NodeVisitor(boolean_condition)) 
-                if boolean_string in self.truths:   # Check if user has already input the validity
-                    resp = self.truths[boolean_string]
+                if boolean_string in self.env.truths:   # Check if user has already input the validity
+                    resp = self.env.truths[boolean_string]
                 else:                               # They haven't, so we need to ask
                     resp = ''
                     while resp != 't' and resp != 'f':
                         resp = input('Encountered Boolean condition ' + boolean_string + ' is it true or false? (t/f)')
-                    self.truths[boolean_string] = resp
+                    self.env.truths[boolean_string] = resp
                 if resp == 't': 
                     def temp_func():
                             vstr2 = NodeVisitor(body)

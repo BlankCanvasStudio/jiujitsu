@@ -72,6 +72,14 @@ class TestState(TestCase):
         stdio.update_file_system('name3', 'contents4')
         self.assertTrue(stdio.fs['~/name3'] == File('~/name3', 'contents4', 'rw-rw-rw-'))
 
+        """ Verify ./ gets replaced properly """
+        stdio.update_file_system('./name4', 'contents4')
+        self.assertTrue(stdio.fs['~/name4'] == File('~/name4', 'contents4', 'rw-rw-rw-'))
+
+        """ Verify trailing slash gets removed properly """
+        stdio.update_file_system('./name5/', 'contents5')
+        self.assertTrue(stdio.fs['~/name5'] == File('~/name5', 'contents5', 'rw-rw-rw-'))
+
 
     def test_replace(self):
         """ Most of the replacement testing is actually in bashparse """
@@ -116,3 +124,22 @@ class TestState(TestCase):
         self.assertTrue(json['fs'] == [])
         self.assertTrue(json['open_sockets'] == [])
         self.assertTrue(json['truths'] == {})
+    
+
+    def test_set_truth(self):
+        state = State()
+
+        state.set_truth('something', True)
+        self.assertTrue(state.test_truth('something'))
+
+
+    def test_test_truth(self):
+        state = State()
+
+        self.assertTrue(state.test_truth('something') == None)
+
+        state.set_truth('something', True)
+        self.assertTrue(state.test_truth('something'))
+
+        state.set_truth('something', False)
+        self.assertTrue(not state.test_truth('something'))

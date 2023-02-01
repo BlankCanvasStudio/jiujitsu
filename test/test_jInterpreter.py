@@ -424,3 +424,42 @@ class TestjInterpreter(TestCase):
             't':'run echo this'
         }
         self.assertTrue(expected_json == intr.alias_table)
+
+
+    def test_truth(self):
+        intr = Interpreter()
+        self.squelch()
+        intr.do_truth('this:true that:false one:t two:f two')
+        self.unsquelch()
+        self.assertTrue(intr.env.state.truths == {})
+
+        self.squelch()
+        intr.do_truth('this:true that:false one:t two:f')
+        self.unsquelch()
+        expected_json = {
+            'this':True,
+            'that':False,
+            'one':True, 
+            'two':False,
+        }
+        self.assertTrue(expected_json == intr.env.state.truths)
+
+    
+    def test_env(self):
+        intr = Interpreter()
+        self.squelch()
+        intr.do_alias('this:that')
+        intr.do_stdin('something')
+        intr.do_stdout('else')
+        intr.do_dir('~/here')
+        intr.do_var('one:two three:four')
+        intr.do_fs('this:contents:rw-rw-rwx')
+        intr.do_truth('this:true that:false')
+        intr.do_env('-e testing_config')
+        intr2 = Interpreter()
+        intr2.do_env('-a testing_config')
+        self.unsquelch()
+        self.assertTrue(intr2.env == intr.env)
+        self.squelch()
+        intr.do_run('-e rm testing_config')
+        self.unsquelch()

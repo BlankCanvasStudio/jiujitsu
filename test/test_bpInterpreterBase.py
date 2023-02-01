@@ -226,6 +226,27 @@ class TestBpInterpreterBase(TestCase):
         self.assertTrue(str(intr.action_stack[0]) == 'Resolving Command Substitution in Assignment')
         self.assertTrue(str(intr.action_stack[1]) == 'Variable Assignment')
 
+
+    def test_set_truth(self):
+        intr = InterpreterBase()
+        self.assertRaises(InterpreterError, intr.set_truth, 1234, 't')
+        self.assertRaises(InterpreterError, intr.set_truth, 'something', 1234)
+
+        intr.set_truth('something', True)
+        self.assertTrue(intr.test_truth('something'))
+
+
+    def test_test_truth(self):
+        intr = InterpreterBase()
+        self.assertRaises(InterpreterError, intr.test_truth, 1234)
+
+        intr.set_truth('something', True)
+        self.assertTrue(intr.test_truth('something'))
+
+        intr.set_truth('something', False)
+        self.assertTrue(not intr.test_truth('something'))
+
+
     def test_interpreter(self):
         """ Add random edge cases to this section? """
         pass
