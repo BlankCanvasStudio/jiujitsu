@@ -80,9 +80,12 @@ class Interpreter(cmd.Cmd):
         if not len(filename):
             print("Please specify a file to load")
             return
-        self.prog_nodes = bashparse.parse(open(filename).read())
-        self.index = 0
-
+        path = pathlib.Path(filename).expanduser()
+        if path.is_file():
+            self.prog_nodes = bashparse.parse(open(filename).read())
+            self.index = 0
+        else:
+            print('Cannot load file', filename, 'file not found')
 
     def do_next(self, text):
         """ Executes the next command in the node list. 
@@ -96,30 +99,36 @@ class Interpreter(cmd.Cmd):
 
         def get_next_node():
             # if self.prog_nodes is None or len(self.prog_nodes) == 0: return None
-            if self.index > len(self.prog_nodes) - 1: return None
+            if self.index >= len(self.prog_nodes): return None
             node = self.prog_nodes[self.index]
             return node
 
         node = get_next_node()                         # Get the next node
-        if not node: return print('No nodes left. Please load more')
+        if not node and not len(self.env.action_stack): return print('No nodes left. Please load more')
         self.index = self.index + 1
         node_str = str(bashparse.NodeVisitor(node))
 
         """ All -e nodes need to be executed in environment so you can switch between them without issue """
-        if self.maintain_history or Flag('h') in flags:
-            self.save_state(action = node_str)
+        
 
-        if Flag('e') in flags:
-            self.do_shell(node_str)  # Convert to str then execute in real shell
+        if not len(self.env.action_stack):
+            if self.maintain_history or Flag('h') in flags:
+                self.save_state(action = node_str)
+            
+            if Flag('e') in flags:
+                self.do_shell(node_str)  # Convert to str then execute in real shell
 
-        if Flag('i') in flags:  # i flag means you want to inch it
-            self.env.build(node, append = False)
+            if Flag('i') in flags:  # i flag means you want to inch it
+                self.env.build(node, append = False)
+            else:
+                self.env.run(node)
+        
         else:
-            self.env.run(node)
+            while self.env.inch(): pass
 
         if Flag('p') in flags:
             return self.state([])
-        
+
         if get_next_node():
             print('=>', str(bashparse.NodeVisitor(get_next_node())))
 
@@ -325,16 +334,26 @@ class Interpreter(cmd.Cmd):
 
     def do_history(self, text):
         """ Implementation of the history command. Prints the history if -p is passed in.
-        on/off/toggle will change if history is saved automatically or not """
+            on/off/toggle will change if history is saved automatically or not 
+            -p flag will print the history
+            -r flag with reset the history to the initial state """
         flags, args = self.parser.parse(text)
 
         if Flag('p') in flags or (len(flags) == 0 and len(args) == 0):
             output = '\n' + "History" + '\n'
             if len(self.history_stack):
-                for record in self.history_stack: output += record.text(showFiles = False)
+                for record in self.history_stack: 
+                    output += record.text(showFiles = False)
+                    output += '---------------------\n\n\n'
             else:
                 output += "No History yet\n"
             print(output)
+        if Flag('r') in flags:
+            print('at this point')
+            self.env = bpInterpreter(STDIO = FileSocket(id_num = 0), working_dir = '~', variables = {}, 
+                    fs = {}, open_sockets = [], truths = {})
+            self.history_stack = [ Record(env=self.env, name='init') ]
+            self.import_config(self.config_file)
         if Arg('on') in args:
             self.maintain_history = True
         if Arg('off') in args:
@@ -442,6 +461,9 @@ class Interpreter(cmd.Cmd):
                 print(str(current_index), '\t', str(bashparse.NodeVisitor(self.prog_nodes[current_index])) )
             
             current_index += 1
+        
+        if self.index >= len(self.prog_nodes):
+            print('=>', '\t', 'FIN')
 
 
 

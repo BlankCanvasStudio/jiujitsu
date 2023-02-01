@@ -100,10 +100,19 @@ class InterpreterBase():
         return self.state.replace(nodes)
 
 
+    def initialize_state_for_new_command(self):
+        self.state.STDIO.OUT = ''
+        self.state.STDIO.IN = ''
+
+
     def build(self, node, append = False):
         if type(node) is not bashparse.node: raise InterpreterError('Interpreter.build(node != bashparse.node)')
         if type(append) is not bool: raise InterpreterError('Interpreter.build(append != bashparse.node)')
         if not append: self.action_stack = []
+
+        action = ActionEntry(func=self.initialize_state_for_new_command, text='Initialize state for command')
+        self.action_stack += [ action ]
+
         vstr = NodeVisitor(node)
         vstr.apply(self.interpreter, vstr)
 

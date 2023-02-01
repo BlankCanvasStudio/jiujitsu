@@ -118,13 +118,16 @@ class TestBpInterpreterBase(TestCase):
         self.assertRaises(InterpreterError, intr.build, node, 1234)
 
         intr.build(node)
-        self.assertTrue(len(intr.action_stack) == 1)
-        self.assertTrue(intr.action_stack[0] == 'Command node: echo')
+        self.assertTrue(len(intr.action_stack) == 2)
+        self.assertTrue(intr.action_stack[0] == 'Initialize state for command')
+        self.assertTrue(intr.action_stack[1] == 'Command node: echo')
 
         intr.build(node, append = True)
-        self.assertTrue(len(intr.action_stack) == 2)
-        self.assertTrue(intr.action_stack[0] == 'Command node: echo')
+        self.assertTrue(len(intr.action_stack) == 4)
+        self.assertTrue(intr.action_stack[0] == 'Initialize state for command')
         self.assertTrue(intr.action_stack[1] == 'Command node: echo')
+        self.assertTrue(intr.action_stack[2] == 'Initialize state for command')
+        self.assertTrue(intr.action_stack[3] == 'Command node: echo')
 
 
     def test_set_variable(self):
@@ -170,6 +173,7 @@ class TestBpInterpreterBase(TestCase):
         intr.build(node)
 
         self.assertTrue(intr.state.STDIO.OUT == '')
+        self.assertTrue(intr.inch())
         self.assertTrue(intr.inch())
         self.assertTrue(intr.state.STDIO.OUT == 'hello world')
 

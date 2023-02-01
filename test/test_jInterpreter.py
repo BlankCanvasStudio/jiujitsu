@@ -158,7 +158,7 @@ class TestjInterpreter(TestCase):
         intr.do_next('')
         self.unsquelch()
 
-        self.assertTrue(intr.env.state.STDIO.OUT == 'hello worldhello world')
+        self.assertTrue(intr.env.state.STDIO.OUT == 'hello world')
         self.assertTrue(3 == len(intr.history_stack))
 
         self.squelch()
@@ -195,6 +195,7 @@ class TestjInterpreter(TestCase):
         intr = Interpreter()
         self.squelch()
         intr.do_build("echo this")
+        intr.do_inch('')
         intr.do_inch('')
         self.unsquelch()
         self.assertTrue(intr.env.state.STDIO.OUT == 'this')
@@ -246,7 +247,7 @@ class TestjInterpreter(TestCase):
         intr.do_run('-i echo hello world')
         self.unsquelch()
         self.assertTrue(intr.env.state.STDIO.OUT == '')
-        self.assertTrue(1 == len(intr.env.action_stack))
+        self.assertTrue(len(intr.env.action_stack) == 2)
         intr.history_stack = intr.history_stack[:-1]
 
         """ Verify the e flag will execute in the environment """
@@ -283,17 +284,20 @@ class TestjInterpreter(TestCase):
         self.squelch()
         intr.do_build('echo this')
         self.unsquelch()
-        for action in intr.env.action_stack:
-            self.assertTrue(str(action) == 'Command node: echo')
-        self.assertTrue(len(intr.env.action_stack) == 1)
+        
+        for i in range(0, len(intr.env.action_stack)-1, 2):
+            self.assertTrue(str(intr.env.action_stack[i]) == 'Initialize state for command')
+            self.assertTrue(str(intr.env.action_stack[i+1]) == 'Command node: echo')
+        self.assertTrue(len(intr.env.action_stack) == 2)
 
         """ Verify that append works """
         self.squelch()
         intr.do_build('-a echo this')
         self.unsquelch()
-        for action in intr.env.action_stack:
-            self.assertTrue(str(action) == 'Command node: echo')
-        self.assertTrue(len(intr.env.action_stack) == 2)
+        for i in range(0, len(intr.env.action_stack)-1, 2):
+            self.assertTrue(str(intr.env.action_stack[i]) == 'Initialize state for command')
+            self.assertTrue(str(intr.env.action_stack[i+1]) == 'Command node: echo')
+        self.assertTrue(len(intr.env.action_stack) == 4)
 
 
     def test_syscall(self):
