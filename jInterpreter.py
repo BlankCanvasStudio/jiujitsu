@@ -18,7 +18,7 @@ class Interpreter(cmd.Cmd):
     def __init__(self, maintain_history = True, config_file = '~/.judo_config'):
         cmd.Cmd.__init__(self, 'tab')
         self.parser = Parser()
-        self.prog_nodes = None
+        self.prog_nodes = []
         self.index = 0
         self.config_file = config_file
         self.env = bpInterpreter(STDIO = FileSocket(id_num = 0), working_dir = '~', variables = {}, 
@@ -27,8 +27,9 @@ class Interpreter(cmd.Cmd):
         self.alias_table = {}
         self.maintain_history = maintain_history
         self.import_config(config_file)
-        
-    
+        self.prompt = '\n>> '
+        self.intro = 'Welcome to the Judo Shell!'
+
 
     def default(self, line):
         cmd, arg, line = self.parseline(line)
@@ -37,10 +38,6 @@ class Interpreter(cmd.Cmd):
             self.onecmd(new_line)
         else:
             print("Invalid command: " + cmd)
-    
-
-    def postcmd(self, stop, line):
-        print()
 
 
     def args_to_str(self, args, unescape=False):
@@ -101,11 +98,11 @@ class Interpreter(cmd.Cmd):
             # if self.prog_nodes is None or len(self.prog_nodes) == 0: return None
             if self.index > len(self.prog_nodes) - 1: return None
             node = self.prog_nodes[self.index]
-            self.index = self.index + 1
             return node
 
         node = get_next_node()                         # Get the next node
         if not node: return print('No nodes left. Please load more')
+        self.index = self.index + 1
         node_str = str(bashparse.NodeVisitor(node))
 
         """ All -e nodes need to be executed in environment so you can switch between them without issue """
@@ -122,6 +119,9 @@ class Interpreter(cmd.Cmd):
 
         if Flag('p') in flags:
             return self.state([])
+        
+        if get_next_node():
+            print('=>', str(bashparse.NodeVisitor(get_next_node())))
 
 
     def do_undo(self, text):
@@ -414,6 +414,37 @@ class Interpreter(cmd.Cmd):
                 self.env.state.truths = old_truth
                 return
             args = args[3:]
+
+
+    def do_list(self, text):
+        """ Use to determine your location in a given bash script. Prints -5:+5 lines around the current line.
+            you can print custom ranges by passing -X:+Y to the function """
+        # line numbers, something to indicate the line
+        # next should print next line to run after that
+        if len(self.prog_nodes) == 0:
+            print('No nodes currently loaded')
+            return
+
+        flags, args = self.parser.parse(text)
+        if len(args) == 0:
+            args = [ Arg('-5'), Arg(':'),  Arg('+5')]
+        elif len(args) > 3:
+            print('Invalid arguments to list. Please use the format: list -X:+Y')
+            return
+        
+        neg = int(args[0].value) if int(args[0].value) < 0 else -int(args[0].value)
+        pos = int(args[2].value)
+
+        current_index = self.index + neg if self.index + neg >= 0 else 0
+        
+        while current_index < len(self.prog_nodes) and current_index <= self.index + pos:
+            if current_index == self.index:
+                print(str(current_index), '=>', '\t', str(bashparse.NodeVisitor(self.prog_nodes[current_index])) )
+            else:
+                print(str(current_index), '\t', str(bashparse.NodeVisitor(self.prog_nodes[current_index])) )
+            
+            current_index += 1
+
 
 
     def do_tokenize(self, text):
