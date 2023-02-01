@@ -419,8 +419,6 @@ class Interpreter(cmd.Cmd):
     def do_list(self, text):
         """ Use to determine your location in a given bash script. Prints -5:+5 lines around the current line.
             you can print custom ranges by passing -X:+Y to the function """
-        # line numbers, something to indicate the line
-        # next should print next line to run after that
         if len(self.prog_nodes) == 0:
             print('No nodes currently loaded')
             return
