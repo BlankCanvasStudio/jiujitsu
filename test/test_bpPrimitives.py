@@ -143,3 +143,23 @@ class TestState(TestCase):
 
         state.set_truth('something', False)
         self.assertTrue(not state.test_truth('something'))
+    
+
+    def test_STDIN(self):
+        state = State()
+        
+        state.STDIN('something')
+        self.assertTrue(state.STDIO.IN == 'something')
+
+        state.STDIN(b'else')
+        self.assertTrue(state.STDIO.IN == 'else')
+    
+
+    def test_STDOUT(self):
+        state = State()
+        
+        state.STDOUT('something')
+        self.assertTrue(state.STDIO.OUT == 'something')
+
+        state.STDOUT(b'else')
+        self.assertTrue(state.STDIO.OUT == 'else')

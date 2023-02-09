@@ -51,8 +51,8 @@ class InterpreterBase():
         if len(self.action_stack) != len(other.action_stack): return False
         for i, el in enumerate(self.action_stack):
             if self.action_stack[i] != other.action_stack[i]: return False     
-        if self.execute != other.execute: return False   
-        if self.state != other.state: return False  
+        if self.execute != other.execute: return False
+        if self.state != other.state: return False
         return True
 
 
@@ -101,8 +101,8 @@ class InterpreterBase():
 
 
     def initialize_state_for_new_command(self):
-        self.state.STDIO.OUT = ''
-        self.state.STDIO.IN = ''
+        self.state.STDOUT('')
+        self.state.STDIN('')
 
 
     def build(self, node, append = False):
@@ -180,14 +180,14 @@ class InterpreterBase():
 
     def stdin(self, IN = None):
         if IN and type(IN) is not str: raise InterpreterError('Error Interpreter.stdin(IN != str)')
-        if IN is not None: self.state.STDIO.IN = IN
-        return self.state.STDIO.IN
+        if IN is not None: self.state.STDIN(IN)
+        return self.state.STDIN()
 
 
     def stdout(self, OUT = None):
         if OUT and type(OUT) is not str: raise InterpreterError('Error Interpreter.stdout(OUT != str)')
-        if OUT is not None: self.state.STDIO.OUT = OUT
-        return self.state.STDIO.OUT
+        if OUT is not None: self.state.STDOUT(OUT)
+        return self.state.STDOUT()
 
 
     """ The following section is everything necessary to actually run the interpreter """
@@ -349,7 +349,7 @@ class InterpreterBase():
                 func = getattr(self, 'f_'+command.word)
                 def temp_func(command, args, node):
                     func(command, args, node)
-                action = ActionEntry(func=temp_func, text='Command node: ' + command.word, args=[command, args, node])
+                action = ActionEntry(func=temp_func, text='Command node: ' + command.word, args=[command, args, node], code=str(bashparse.NodeVisitor(node)))
                 self.action_stack += [ action ]
 
             else: 
@@ -362,7 +362,7 @@ class InterpreterBase():
                     elif resp == 'y':
                         pass
 
-                action = ActionEntry(func=temp_func, text='Unknown command: ' + command.word + '. Possibly Passing')
+                action = ActionEntry(func=temp_func, text='Unknown command: ' + command.word + '. Possibly Passing', code=str(bashparse.NodeVisitor(node)))
 
                 self.action_stack += [ action ]
 
@@ -385,7 +385,7 @@ class InterpreterBase():
                         end = part.pos[0] - (command.pos[1] - command.pos[0])    # start + len
                         command.word = command.word[:start] + results + command.word[end:]
                     to_remove += [ i ]
-                    action = ActionEntry(func=temp_func, text='Resolving Command Substitution in Assignment')
+                    action = ActionEntry(func=temp_func, text='Resolving Command Substitution in Assignment', code=str(bashparse.NodeVisitor(node)))
                     self.action_stack += [ action ]
 
             """ Removing the indexes backwards to keep the indexing correct """
@@ -398,7 +398,7 @@ class InterpreterBase():
                 replaced = self.state.replace(command, replace_blanks=True)
                 for node in replaced:
                     self.state.update_variable_list(node)
-            action = ActionEntry(func=temp_func, text='Variable Assignment')
+            action = ActionEntry(func=temp_func, text='Variable Assignment', code=str(bashparse.NodeVisitor(node)))
             self.action_stack += [ action ]
 
         else:

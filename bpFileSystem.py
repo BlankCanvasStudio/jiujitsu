@@ -35,7 +35,11 @@ class FileSocket:
         return True
 
     def write(self, text_in):
-        self.OUT += text_in 
+        if type(text_in) is bytes:
+            self.OUT += text_in.decode('utf-8')
+        else:
+            self.OUT += str(text_in)
+        return self.OUT 
 
     def read(self):
         tmp = self.IN

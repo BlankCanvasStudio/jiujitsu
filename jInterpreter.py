@@ -60,8 +60,6 @@ class Interpreter(cmd.Cmd):
             with open(path) as config_file:
                 for new_line in config_file:
                     self.onecmd(new_line)
-        else:
-            print('config file:', config_file, 'not found')
         self.maintain_history = maintain_history
 
 
@@ -84,8 +82,10 @@ class Interpreter(cmd.Cmd):
         if path.is_file():
             self.prog_nodes = bashparse.parse(open(filename).read())
             self.index = 0
+            print('=> ' + str(bashparse.NodeVisitor(self.prog_nodes[0])))
         else:
             print('Cannot load file', filename, 'file not found')
+
 
     def do_next(self, text):
         """ Executes the next command in the node list. 
@@ -105,7 +105,8 @@ class Interpreter(cmd.Cmd):
 
         node = get_next_node()                         # Get the next node
         if not node and not len(self.env.action_stack): return print('No nodes left. Please load more')
-        self.index = self.index + 1
+        if Flag('i') not in flags:
+            self.index = self.index + 1
         node_str = str(bashparse.NodeVisitor(node))
 
         """ All -e nodes need to be executed in environment so you can switch between them without issue """
@@ -120,11 +121,15 @@ class Interpreter(cmd.Cmd):
 
             if Flag('i') in flags:  # i flag means you want to inch it
                 self.env.build(node, append = False)
+                if len(self.env.action_stack):
+                    print('=>', self.env.action_stack[0])
+                else:
+                    print('=> Action stack empty')
             else:
                 self.env.run(node)
         
         else:
-            while self.env.inch(): pass
+            while len(self.env.action_stack): self.do_inch(text)
 
         if Flag('p') in flags:
             return self.state([])
@@ -164,10 +169,30 @@ class Interpreter(cmd.Cmd):
 
 
     def do_inch(self, text):
-        """  """
-        res = self.env.inch()
-        if not res:
+        """ If you have run the build command or next -i, the execution stack for the given command will be built, but not run. 
+            The inch command then allows you to step through this action stack, allowing you to modify the state as the command 
+            progresses.
+            Use the -e flag to execute the command in the ACTUAL SYSTEM ENVIRONMENT. """
+        
+        if not len(self.env.action_stack):
             print("Action Stack is empty. Please run build or next/run -i to load the action stack")
+            return
+        
+        flags, args = self.parser.parse(text)
+        
+        if Flag('e') in flags:
+            node_str = self.env.action_stack[0].code
+            self.do_shell(node_str)
+            self.env.action_stack.pop(0)
+            self.env.stdin('')
+
+        else:
+            res = self.env.inch()
+        
+        if len(self.env.action_stack):
+            print(self.env.action_stack[0])
+        else:
+            print('Action stack empty')
 
 
     def do_run(self, text):
@@ -229,19 +254,29 @@ class Interpreter(cmd.Cmd):
     
 
     def do_shell(self, text):
-        "Runs a (real) command on your host system.  Note that the ! must be followed by a space."
-        nodes = self.env.replace(bashparse.parse(text))
+        """Runs a (real) command on your host system.  Note that the ! must be followed by a space.
+                STDIO will be passed into the command unless the -n flag is specified """
+        
+        flags, args = self.parser.parse(text)
+        text = self.args_to_str(args)
+        
+        repl_nodes = self.env.replace(bashparse.parse(text))
         
         """ Convert the replaced nodes to text """
-        text = ' '.join( [ str(bashparse.NodeVisitor(x)) + '\n' for x in nodes ] )
         
-        """ Execute the code """
-        result = subprocess.run(text, shell=True, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        for node in repl_nodes:
+            
+            repl_text = str(bashparse.NodeVisitor(node))
+            if Flag('n') not in flags:
+                repl_text = 'echo "' + self.env.stdin() + '" | ' + repl_text
+
+            """ Execute the code """
+            result = subprocess.run(repl_text, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
         """ Put results in the STDIO """
-        output = str(result.stdout)
-        if len(str(result.stderr)): output += '\n' + 'Error: ' + str(result.stderr)
-        self.env.state.STDIO.OUT = output
+        output = result.stdout
+        if len(str(result.stderr)): output += result.stderr
+        self.env.state.STDOUT(output)
 
 
     def do_dir(self, text):
@@ -281,7 +316,7 @@ class Interpreter(cmd.Cmd):
         if Flag('p') in flags:
             print(self.env.text_variables())
 
-    
+
     def do_fs(self, text):
         """ Adds files to the file system using the format name:contents:permissions.
             Permissions optional with default rw-rw-rw- 

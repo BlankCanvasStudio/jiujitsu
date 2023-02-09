@@ -35,13 +35,14 @@ class TestjInterpreter(TestCase):
 
 
     def test_load(self):
-        intr = Interpreter()
         self.squelch()
+        intr = Interpreter()
         intr.do_load('test.sh')
         self.unsquelch()
         """ Build correct answers """
-        nodes = bashparse.parse('mv /usr/bin/something /usr/bin/else') + bashparse.parse('echo this')
+        nodes = bashparse.parse('mv /usr/bin/something /usr/bin/else') + bashparse.parse('echo this') + bashparse.parse('cat test.sh | grep grep')
         nodes[1] = bashparse.align(nodes[1], nodes[0].pos[1] + 1)
+        nodes[2] = bashparse.align(nodes[2], nodes[1].pos[1] + 1)
         
         """  Verify the nodes properly loaded into Interpreter.prog_nodes """
         self.assertTrue(len(intr.prog_nodes) == len(nodes))
@@ -201,6 +202,23 @@ class TestjInterpreter(TestCase):
         self.assertTrue(intr.env.state.STDIO.OUT == 'this')
         self.assertTrue(len(intr.env.action_stack) == 0)
 
+        # Test that exiting the interpreter with inch works just fine
+        intr = Interpreter()
+        self.squelch()
+        intr.do_load('test.sh')
+        intr.do_next('')
+        intr.do_next('')
+        intr.do_next("-i")
+        self.unsquelch()
+        self.assertTrue(intr.index == 2)
+        self.squelch()
+        intr.do_inch('')
+        intr.do_inch('-e')
+        intr.do_inch('')
+        intr.do_inch('-e')
+        self.unsquelch()
+        self.assertTrue(intr.env.state.STDIO.OUT == 'cat test.sh | grep grep\n')
+
 
     def test_run(self):
         intr = Interpreter()
@@ -209,8 +227,9 @@ class TestjInterpreter(TestCase):
         self.unsquelch()
 
         """ Build correct answers """
-        nodes = bashparse.parse('mv /usr/bin/something /usr/bin/else') + bashparse.parse('echo this')
+        nodes = bashparse.parse('mv /usr/bin/something /usr/bin/else') + bashparse.parse('echo this') + bashparse.parse('cat test.sh | grep grep')
         nodes[1] = bashparse.align(nodes[1], nodes[0].pos[1] + 1)
+        nodes[2] = bashparse.align(nodes[2], nodes[1].pos[1] + 1)
         
         """  Verify the nodes properly loaded into Interpreter.prog_nodes """
         self.assertTrue(len(intr.prog_nodes) == len(nodes))

@@ -4,10 +4,11 @@ import bashparse
 
 class ActionEntry():
 
-    def __init__(self, func, text, args = None):
+    def __init__(self, func, text, args = None, code = None):
         self.func = func
         self.text = text
         self.args = args
+        self.code = code
 
     def __call__(self):
         if self.args is not None:
@@ -165,3 +166,19 @@ class State:
         if not len(self.fs):
             output += "No Files in the file system" + '\n'
         return output
+    
+    def STDIN(self, IN=None):
+        if IN is not None: 
+            if type(IN) is bytes:
+                self.STDIO.IN = IN.decode('utf-8')
+            else:    
+                self.STDIO.IN = str(IN)
+        return self.STDIO.IN
+    
+    def STDOUT(self, OUT=None):
+        if OUT is not None: 
+            if type(OUT) is bytes:
+                self.STDIO.OUT = OUT.decode('utf-8')
+            else:    
+                self.STDIO.OUT = str(OUT)
+        return self.STDIO.OUT
