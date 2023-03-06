@@ -1,1 +1,0 @@
-echo a; b=3; echo $b; b=4; echo $b
