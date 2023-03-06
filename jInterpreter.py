@@ -531,6 +531,11 @@ class Interpreter(cmd.Cmd):
             alias_name = args[0].value
             alias_text = self.args_to_str(args[1:])
             self.alias_table[alias_name] = alias_text
+    
+
+    def do_reset(self, text):
+        """ Resets the enironment to the original state """
+        self.__init__(maintain_history = self.maintain_history, config_file = self.config_file)
 
 
 

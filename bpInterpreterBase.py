@@ -227,7 +227,6 @@ class InterpreterBase():
 
 
         elif node.kind == 'command':
-            node = self.replace(node)[0]
             self.run_command(node.parts[0], node.parts[1:], node)
 
 
@@ -264,9 +263,8 @@ class InterpreterBase():
                             pass
                         elif part.op == ';':
                             self.execute = True
-                            text = self.state.STDIO.read()
-                            if len(text):
-                                print(text)
+                            self.state.STDIN('')
+                            self.state.STDOUT('')
                         else:
                             raise ValueError("Op type not implemented in interpreter")
                     action = ActionEntry(func=temp_func, text='list node transfer character: ' + part.op, args=[part])
@@ -348,7 +346,8 @@ class InterpreterBase():
                 """ Very cheeky dynamic programming. Hopefully it doesn't kill performance too much """
                 func = getattr(self, 'f_'+command.word)
                 def temp_func(command, args, node):
-                    func(command, args, node)
+                    node = self.replace(node)[0]
+                    func(node.parts[0], node.parts[1:], node)
                 action = ActionEntry(func=temp_func, text='Command node: ' + command.word, args=[command, args, node], code=str(bashparse.NodeVisitor(node)))
                 self.action_stack += [ action ]
 

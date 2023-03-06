@@ -252,5 +252,46 @@ class TestBpInterpreterBase(TestCase):
 
 
     def test_interpreter(self):
-        """ Add random edge cases to this section? """
-        pass
+        """ Add random edge cases to this section """
+
+        """ Verify the variable assignment only happens when inched through. 
+            This was a bug that happened """
+        bash_node = bashparse.parse('echo a; b=3; echo $b; b=4; echo $b')[0]
+        intr = Full_Interpreter()
+        expected_state = State()
+        intr.build(bash_node)
+        self.assertTrue(expected_state == intr.state)
+        intr.inch() # init state for command
+        self.assertTrue(expected_state == intr.state)
+        intr.inch() # list node entry
+        self.assertTrue(expected_state == intr.state)
+        intr.inch() # echo command
+        expected_state.STDOUT('a')
+        self.assertTrue(expected_state == intr.state)
+        intr.inch() # Transfer character
+        expected_state.STDOUT('')
+        self.assertTrue(expected_state == intr.state)
+        intr.inch() # Variable assignment
+        expected_state.set_variable('b', '3')
+        self.assertTrue(expected_state == intr.state)
+        intr.inch() # Transfer character
+        expected_state.STDOUT('')
+        self.assertTrue(expected_state == intr.state)
+        intr.inch() # echo command
+        expected_state.STDOUT('3')
+        self.assertTrue(expected_state == intr.state)
+        intr.inch() # Transfer character
+        expected_state.STDOUT('')
+        self.assertTrue(expected_state == intr.state)
+        intr.inch() # Variable assignment
+        expected_state.set_variable('b', '4')
+        self.assertTrue(expected_state == intr.state)
+        intr.inch() # Transfer character
+        expected_state.STDOUT('')
+        self.assertTrue(expected_state == intr.state)
+        intr.inch() # echo command
+        expected_state.STDOUT('4')
+        self.assertTrue(expected_state == intr.state)
+
+
+        
