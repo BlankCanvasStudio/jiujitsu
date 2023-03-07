@@ -340,8 +340,31 @@ class InterpreterBase():
         return bashparse.DONT_DESCEND       # I feel like this is a bad way to use bashparse but too much thinking
 
 
+    def resolve_command_substitution(self, node):
+        for part in node.parts:
+            if part.kind == 'commandsubstitution':
+                def temp_func(node, part):
+                    Interpreter = self.__class__
+                    subshell = Interpreter()
+                    subshell.__init__()
+                    commandsub = part.command
+                    subshell.run(commandsub)
+                    results = subshell.state.STDIO.read()
+
+                    # The file sytem in the subshell is going to update the current file system
+                    self.state.fs.update(subshell.state.fs)
+
+                    # Adjust the tree with the replaced results
+                    node.word = node.word[:part.pos[0]] + results + node.word[part.pos[1]:]
+
+                action = ActionEntry(func=temp_func, args=[node, part], text='Resolving Command Substitution: ', code=str(bashparse.NodeVisitor(node)))
+                self.action_stack += [ action ]
+
     def run_command(self, command, args, node):
+        
         if command.kind == 'word':
+            for part in node.parts:
+                self.resolve_command_substitution(part)
             if command.word in self.bin:
                 """ Very cheeky dynamic programming. Hopefully it doesn't kill performance too much """
                 func = getattr(self, 'f_'+command.word)
@@ -353,13 +376,14 @@ class InterpreterBase():
 
             else: 
                 def temp_func():
-                    resp = ''
-                    while resp != 'n' and resp != 'y':
-                        resp = input('Unknown command ' + command.word + ' encouncered. Skip? (y/n)')
-                    if resp == 'n':
-                        raise ValueError("Command " + command.word + " not implemented")
-                    elif resp == 'y':
-                        pass
+                    if len(command.word.strip()) or len(args):
+                        resp = ''
+                        while resp != 'n' and resp != 'y':
+                            resp = input('Unknown command ' + command.word + ' encouncered. Skip? (y/n)')
+                        if resp == 'n':
+                            raise ValueError("Command " + command.word + " not implemented")
+                        elif resp == 'y':
+                            pass
 
                 action = ActionEntry(func=temp_func, text='Unknown command: ' + command.word + '. Possibly Passing', code=str(bashparse.NodeVisitor(node)))
 
@@ -368,24 +392,9 @@ class InterpreterBase():
 
         elif command.kind == 'assignment':
             to_remove = []  # need to remove backwards to keep the indexes right
-
-            """ Resolve the values from all command substitutions """
-            for i, part in enumerate(command.parts):
-                if part.kind == 'commandsubstitution':
-                    def temp_func():
-                        # Create and execute command in subshell
-                        subshell = Interpreter()
-                        commandsub = part.command
-                        subshell.run(commandsub)
-                        results = subshell.STDIO.read()
-
-                        # Adjust the tree with the replaced results
-                        start = part.pos[0] - command.pos[0]
-                        end = part.pos[0] - (command.pos[1] - command.pos[0])    # start + len
-                        command.word = command.word[:start] + results + command.word[end:]
-                    to_remove += [ i ]
-                    action = ActionEntry(func=temp_func, text='Resolving Command Substitution in Assignment', code=str(bashparse.NodeVisitor(node)))
-                    self.action_stack += [ action ]
+            for part in node.parts:
+                if len(part.parts):
+                    self.resolve_command_substitution(part)
 
             """ Removing the indexes backwards to keep the indexing correct """
             for index in reversed(to_remove):

@@ -3,6 +3,8 @@ mv /usr/bin/something /usr/bin/else
 wget http://www.google.com
 a==b; c=d; c="something else";b=something; else=notelse
 a=$b; cd $else $b; f=$(cd $b)
+$(cp this that)
+$(mv over rainbow)
 testing=thisaval
 testing2=thisaval
 testingg=$testinggg

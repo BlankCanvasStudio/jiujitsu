@@ -227,7 +227,7 @@ class TestBpInterpreterBase(TestCase):
         intr.action_stack = []
         cmd_sub_node = bashparse.parse('a=$(echo this)')[0]
         intr.run_command(cmd_sub_node.parts[0], cmd_sub_node.parts[1:], cmd_sub_node)
-        self.assertTrue(str(intr.action_stack[0]) == 'Resolving Command Substitution in Assignment')
+        self.assertTrue(str(intr.action_stack[0]) == 'Resolving Command Substitution: ')
         self.assertTrue(str(intr.action_stack[1]) == 'Variable Assignment')
 
 
@@ -249,6 +249,30 @@ class TestBpInterpreterBase(TestCase):
 
         intr.set_truth('something', False)
         self.assertTrue(not intr.test_truth('something'))
+
+
+    def test_command_substitution(self):
+        # Verify the replacement works
+        node = bashparse.parse("f=$(cd $b)")[0]
+        intr = Full_Interpreter()
+        intr.run(node)
+        self.assertTrue(intr.state.variables == {'f':[''], 'b':['']})
+
+        # Verify the file system changes properly with cp
+        intr = Full_Interpreter()
+        node = bashparse.parse("$(cp this that)")[0]
+        intr.run(node)
+        expected_intr = Full_Interpreter()
+        expected_intr.run(bashparse.parse("cp this that")[0])
+        self.assertTrue(intr.state.fs == expected_intr.state.fs)
+
+        # Verify the file system changes properly with mv
+        intr = Full_Interpreter()
+        node = bashparse.parse("$(mv over rainbow)")[0]
+        intr.run(node)
+        expected_intr = Full_Interpreter()
+        expected_intr.run(bashparse.parse("mv over rainbow")[0])
+        self.assertTrue(intr.state.fs == expected_intr.state.fs)
 
 
     def test_interpreter(self):

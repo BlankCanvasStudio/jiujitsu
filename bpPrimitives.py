@@ -36,7 +36,7 @@ class State:
         if fs is None: fs = {}
         if open_sockets is None: open_sockets = []
         if truths is None: truths = {}
-        
+
         """ Type checking stuff for json importing reasons """
         if type(STDIO) is dict: STDIO = FileSocket(**STDIO)
         if type(fs) is list:    # For json importing
@@ -182,3 +182,12 @@ class State:
             else:    
                 self.STDIO.OUT = str(OUT)
         return self.STDIO.OUT
+    
+
+    def copy_file(self, from_file, to_file):
+        if from_file not in self.fs: self.fs[from_file] = File(name=from_file, contents='')
+        self.fs[to_file] = self.fs[from_file]
+
+    def remove_file(self, filename):
+        if filename in self.fs:
+            del self.fs[filename]

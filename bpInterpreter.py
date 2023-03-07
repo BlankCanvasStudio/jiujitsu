@@ -62,10 +62,12 @@ class Interpreter(InterpreterBase):
         if args[0].word in self.state.fs or self.state.working_dir+'/'+args[0].word in self.state.fs: self.state.fs.pop(args[0].word)
         else: print("rm: cannot remove '" + args[0].word + "': No such file or directory")
 
-    def f_cp(self, command, args, node):
-        if len(args) == 2:
-            if args[0].word in self.state.fs:
-                self.state.fs[args[1].word] = self.state.fs[args[0].word]
-    
     def f_mv(self, command, args, node):
+        self.state.copy_file(args[0].word, args[1].word)
+        self.state.remove_file(args[0].word)
+    
+    def f_cp(self, command, args, node):
+        self.state.copy_file(args[0].word, args[1].word)
+    
+    def f_(self, command, args, node):
         pass
