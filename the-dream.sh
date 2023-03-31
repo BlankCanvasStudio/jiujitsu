@@ -1,4 +1,14 @@
 #!/bin/bash
+sshports="one, two, three"
+for test in $sshports; 
+do 
+  echo "test: $test"
+  for sshp in $sshports; 
+  do 
+    echo "sshp: $test"
+  done
+done
+
 mv /usr/bin/something /usr/bin/else
 wget http://www.google.com
 a==b; c=d; c="something else";b=something; else=notelse
@@ -11,14 +21,7 @@ testingg=$testinggg
 cd /tmp &  cd /var/run &  cd /mnt &  cd /root &  cd /;
 cd /tmp || cd /var/run || cd /mnt || cd /root || cd /;
 
-for test in $sshports; do
-    for sshp in $sshports;
-    do
-        if [ "${i}" -eq "20" ]; then
-          echo "this"
-        fi
-    done
-done
+
 
 if [ -s /usr/bin/ifconfig ];
 then

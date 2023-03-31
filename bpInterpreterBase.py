@@ -268,13 +268,14 @@ class InterpreterBase():
                                 self.execute = False
                         elif part.op == '&':
                             pass
-                        elif part.op == ';':
+                        elif part.op == ';' or part.op == '\n':
                             self.execute = True
                             self.state.STDIN('')
                             self.state.STDOUT('')
                         else:
-                            raise ValueError("Op type not implemented in interpreter")
-                    action = ActionEntry(func=temp_func, text='list node transfer character: ' + part.op, args=[part])
+                            raise ValueError("Op type not implemented in interpreter: ", part.op)
+
+                    action = ActionEntry(func=temp_func, text='list node transfer character: ' + part.op.replace('\n', '\\n'), args=[part])
                     self.action_stack += [ action ]
 
         elif node.kind == 'for':
@@ -328,13 +329,13 @@ class InterpreterBase():
 
                 # Determine truthiness
                 boolean_string = str(NodeVisitor(boolean_condition)) 
-                if boolean_string in self.env.truths:   # Check if user has already input the validity
-                    resp = self.env.truths[boolean_string]
+                if boolean_string in self.state.truths:   # Check if user has already input the validity
+                    resp = self.state.truths[boolean_string]
                 else:                               # They haven't, so we need to ask
                     resp = ''
                     while resp != 't' and resp != 'f':
                         resp = input('Encountered Boolean condition ' + boolean_string + ' is it true or false? (t/f)')
-                    self.env.truths[boolean_string] = resp
+                    self.state.truths[boolean_string] = resp
                 if resp == 't': 
                     def temp_func():
                             vstr2 = NodeVisitor(body)

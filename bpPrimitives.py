@@ -147,7 +147,11 @@ class State:
     def variablesText(self):
         output = 'Variables: \n'
         for key, value in self.variables.items():
-            output += '  ' + key + ': "' + value[-1] + '"\n'
+            if len(value):
+                output += '  ' + key + ': "' + value[-1] + '"\n'
+            else:
+                # opting not to print variables with no values. LMK in an issue if that's wrong
+                pass
         if not len(self.variables):
             output += "No variables in list\n"
         return output

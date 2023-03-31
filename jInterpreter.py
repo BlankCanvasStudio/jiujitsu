@@ -228,10 +228,16 @@ class Interpreter(cmd.Cmd):
         # Build the action stack for the node
         try:
             nodes = bashparser.parse(cmd)
+        except:
+            
+            print("bashlex could not build AST of code:")
+            print(cmd)
+        try:
             for node in nodes:
                 self.env.build(node, append= Flag('a') in flags)
         except:
-            print("bashparser cannot parse the code provided")
+            print('The interpreter cannot build the given command. Please report this bug')
+        
 
 
     def do_stack(self, text):
@@ -245,14 +251,21 @@ class Interpreter(cmd.Cmd):
 
     def do_parse(self, text):
         """ Nice little parse wrapper for bashparser.parse()
-            Parses whatever text you pass into the function and dumps the node """
-        try:
-            nodes = bashparser.parse(text)
-            for node in nodes:
-                print(node.dump())
-        except:
-            print("bashparser could not parse text")
-    
+            Parses whatever text you pass into the function and dumps the node.
+            Pass in the -f flag to parse the node at the current index in the file. """
+        flags, args = self.parser.parse(text)
+        text = self.args_to_str(args)
+        if Flag('f') in flags:
+            print(self.prog_nodes[self.index].dump())
+        else:
+            try:
+                nodes = bashparser.parse(text)
+                for node in nodes:
+                    print(node.dump())
+            except:
+                print("bashlex could not build AST of code:")
+                print(self.prog_nodes[self.index])
+
 
     def do_shell(self, text):
         """Runs a (real) command on your host system.  Note that the ! must be followed by a space.
@@ -399,6 +412,10 @@ class Interpreter(cmd.Cmd):
 
 
     def do_exit(self, text):
+        "Quits the interpreter"
+        exit()
+    
+    def do_quit(self, text):
         "Quits the interpreter"
         exit()
 
