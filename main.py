@@ -1,9 +1,9 @@
 #!/bin/python3
-import bashparse
+import bashparser
 from bpInterpreter import Interpreter
 
 text = open('test.sh').read()
-nodes = bashparse.parse(text)
+nodes = bashparser.parse(text)
 i = Interpreter()
 for node in nodes:
     i.run(node)

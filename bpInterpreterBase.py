@@ -1,7 +1,7 @@
 from bpFileSystem import FileSocket
 from bpPrimitives import ActionEntry, State
-from bashparse import NodeVisitor
-import copy, bashparse
+from bashparser import NodeVisitor
+import copy, bashparser
 
 
 class InterpreterError(Exception):
@@ -96,7 +96,7 @@ class InterpreterBase():
     def replace(self, nodes):
         if type(nodes) is not list: nodes = [ nodes ]
         for node in nodes:
-            if type(node) is not bashparse.node: raise InterpreterError('Interpreter.replace() takes an array of bashparse nodes as its argument')
+            if type(node) is not bashparser.node: raise InterpreterError('Interpreter.replace() takes an array of bashparser nodes as its argument')
         return self.state.replace(nodes)
 
 
@@ -106,8 +106,8 @@ class InterpreterBase():
 
 
     def build(self, node, append = False):
-        if type(node) is not bashparse.node: raise InterpreterError('Interpreter.build(node != bashparse.node)')
-        if type(append) is not bool: raise InterpreterError('Interpreter.build(append != bashparse.node)')
+        if type(node) is not bashparser.node: raise InterpreterError('Interpreter.build(node != bashparser.node)')
+        if type(append) is not bool: raise InterpreterError('Interpreter.build(append != bashparser.node)')
         if not append: self.action_stack = []
 
         action = ActionEntry(func=self.initialize_state_for_new_command, text='Initialize state for command')
@@ -204,7 +204,7 @@ class InterpreterBase():
 
     """ Run everything off the action stack """
     def run(self, node = None):
-        if node and type(node) is not bashparse.node: raise InterpreterError('Error. Interpreter.run(node != bashparse.node)')
+        if node and type(node) is not bashparser.node: raise InterpreterError('Error. Interpreter.run(node != bashparser.node)')
         if node is not None: self.build(node)
         while len(self.action_stack): self.inch()
 
@@ -335,9 +335,9 @@ class InterpreterBase():
                     action = ActionEntry(func=temp_func, text='If node with positive result')
 
         else:
-            raise ValueError("Invalid Node type in bashparse interpreter: " + node.kind + '\n' + node.dump())
+            raise ValueError("Invalid Node type in bashparser interpreter: " + node.kind + '\n' + node.dump())
 
-        return bashparse.DONT_DESCEND       # I feel like this is a bad way to use bashparse but too much thinking
+        return bashparser.DONT_DESCEND       # I feel like this is a bad way to use bashparser but too much thinking
 
 
     def resolve_command_substitution(self, node):
@@ -357,7 +357,7 @@ class InterpreterBase():
                     # Adjust the tree with the replaced results
                     node.word = node.word[:part.pos[0]] + results + node.word[part.pos[1]:]
 
-                action = ActionEntry(func=temp_func, args=[node, part], text='Resolving Command Substitution: ', code=str(bashparse.NodeVisitor(node)))
+                action = ActionEntry(func=temp_func, args=[node, part], text='Resolving Command Substitution: ', code=str(bashparser.NodeVisitor(node)))
                 self.action_stack += [ action ]
 
     def run_command(self, command, args, node):
@@ -371,7 +371,7 @@ class InterpreterBase():
                 def temp_func(command, args, node):
                     node = self.replace(node)[0]
                     func(node.parts[0], node.parts[1:], node)
-                action = ActionEntry(func=temp_func, text='Command node: ' + command.word, args=[command, args, node], code=str(bashparse.NodeVisitor(node)))
+                action = ActionEntry(func=temp_func, text='Command node: ' + command.word, args=[command, args, node], code=str(bashparser.NodeVisitor(node)))
                 self.action_stack += [ action ]
 
             else: 
@@ -385,7 +385,7 @@ class InterpreterBase():
                         elif resp == 'y':
                             pass
 
-                action = ActionEntry(func=temp_func, text='Unknown command: ' + command.word + '. Possibly Passing', code=str(bashparse.NodeVisitor(node)))
+                action = ActionEntry(func=temp_func, text='Unknown command: ' + command.word + '. Possibly Passing', code=str(bashparser.NodeVisitor(node)))
 
                 self.action_stack += [ action ]
 
@@ -406,7 +406,7 @@ class InterpreterBase():
                 replaced = self.state.replace(command, replace_blanks=True)
                 for node in replaced:
                     self.state.update_variable_list(node)
-            action = ActionEntry(func=temp_func, text='Variable Assignment', code=str(bashparse.NodeVisitor(node)))
+            action = ActionEntry(func=temp_func, text='Variable Assignment', code=str(bashparser.NodeVisitor(node)))
             self.action_stack += [ action ]
 
         else:

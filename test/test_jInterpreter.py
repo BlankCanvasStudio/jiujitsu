@@ -3,7 +3,7 @@ from jInterpreter import Interpreter
 from jParser import Parser
 from jNode import Flag, Arg
 from bpFileSystem import File, FileSocket
-import bashparse, os, copy, sys
+import bashparser, os, copy, sys
 
 old_stdout = sys.stdout # backup current stdout
 
@@ -40,9 +40,9 @@ class TestjInterpreter(TestCase):
         intr.do_load('test.sh')
         self.unsquelch()
         """ Build correct answers """
-        nodes = bashparse.parse('mv /usr/bin/something /usr/bin/else') + bashparse.parse('echo this') + bashparse.parse('cat test.sh | grep grep')
-        nodes[1] = bashparse.align(nodes[1], nodes[0].pos[1] + 1)
-        nodes[2] = bashparse.align(nodes[2], nodes[1].pos[1] + 1)
+        nodes = bashparser.parse('mv /usr/bin/something /usr/bin/else') + bashparser.parse('echo this') + bashparser.parse('cat test.sh | grep grep')
+        nodes[1] = bashparser.align(nodes[1], nodes[0].pos[1] + 1)
+        nodes[2] = bashparser.align(nodes[2], nodes[1].pos[1] + 1)
         
         """  Verify the nodes properly loaded into Interpreter.prog_nodes """
         self.assertTrue(len(intr.prog_nodes) == len(nodes))
@@ -64,7 +64,7 @@ class TestjInterpreter(TestCase):
         initial_env_len = len(intr.history_stack)
 
         """ Run the command flat out. No new history should be added """
-        intr.prog_nodes = bashparse.parse('echo hello world')
+        intr.prog_nodes = bashparser.parse('echo hello world')
         intr.index = 0
         intr.env.state.STDIO.OUT = ''
         self.squelch()
@@ -74,7 +74,7 @@ class TestjInterpreter(TestCase):
         self.assertTrue(initial_env_len == len(intr.history_stack))
 
         """ Verify h flag will create a new history entry """
-        intr.prog_nodes = bashparse.parse('echo hello world')
+        intr.prog_nodes = bashparser.parse('echo hello world')
         intr.index = 0
         intr.env.state.STDIO.OUT = ''
         self.squelch()
@@ -85,7 +85,7 @@ class TestjInterpreter(TestCase):
         intr.history_stack = intr.history_stack[:-1]
 
         """ Verify i flag will alias to build """
-        intr.prog_nodes = bashparse.parse('echo hello world')
+        intr.prog_nodes = bashparser.parse('echo hello world')
         intr.index = 0
         intr.env.state.STDIO.OUT = ''
         self.squelch()
@@ -98,7 +98,7 @@ class TestjInterpreter(TestCase):
         """ Verify the e flag will execute in the environment """
         """ Actually move a file in the env """
         intr.env.state.update_file_system('test.sh', 'some contents', location='.')
-        intr.prog_nodes = bashparse.parse('cp ./test.sh ./test2.sh')
+        intr.prog_nodes = bashparser.parse('cp ./test.sh ./test2.sh')
         intr.index = 0
         intr.env.state.STDIO.OUT = ''
         self.squelch()
@@ -110,7 +110,7 @@ class TestjInterpreter(TestCase):
         self.assertTrue('test2.sh' in files)
 
         """ Delete the file in the env """
-        intr.prog_nodes = bashparse.parse('rm ./test2.sh')
+        intr.prog_nodes = bashparser.parse('rm ./test2.sh')
         intr.index = 0
         intr.env.state.STDIO.OUT = ''
         self.squelch()
@@ -120,7 +120,7 @@ class TestjInterpreter(TestCase):
 
         """ Verify maintain_history = True will add an entry into the history """
         intr.maintain_history = True
-        intr.prog_nodes = bashparse.parse('echo hello world')
+        intr.prog_nodes = bashparser.parse('echo hello world')
         intr.index = 0
         intr.env.state.STDIO.OUT = ''
         self.squelch()
@@ -146,14 +146,14 @@ class TestjInterpreter(TestCase):
         
 
         """ Verify undo works with more than 1 entry """
-        intr.prog_nodes = bashparse.parse('echo hello world')
+        intr.prog_nodes = bashparser.parse('echo hello world')
         intr.index = 0
         intr.env.state.STDIO.OUT = ''
         self.squelch()
         intr.do_next('')
         self.unsquelch()
 
-        intr.prog_nodes = bashparse.parse('echo hello world')
+        intr.prog_nodes = bashparser.parse('echo hello world')
         intr.index = 0
         self.squelch()
         intr.do_next('')
@@ -227,9 +227,9 @@ class TestjInterpreter(TestCase):
         self.unsquelch()
 
         """ Build correct answers """
-        nodes = bashparse.parse('mv /usr/bin/something /usr/bin/else') + bashparse.parse('echo this') + bashparse.parse('cat test.sh | grep grep')
-        nodes[1] = bashparse.align(nodes[1], nodes[0].pos[1] + 1)
-        nodes[2] = bashparse.align(nodes[2], nodes[1].pos[1] + 1)
+        nodes = bashparser.parse('mv /usr/bin/something /usr/bin/else') + bashparser.parse('echo this') + bashparser.parse('cat test.sh | grep grep')
+        nodes[1] = bashparser.align(nodes[1], nodes[0].pos[1] + 1)
+        nodes[2] = bashparser.align(nodes[2], nodes[1].pos[1] + 1)
         
         """  Verify the nodes properly loaded into Interpreter.prog_nodes """
         self.assertTrue(len(intr.prog_nodes) == len(nodes))

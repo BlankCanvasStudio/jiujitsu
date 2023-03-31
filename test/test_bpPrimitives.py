@@ -1,7 +1,7 @@
 from unittest import TestCase
 from bpPrimitives import State
 from bpFileSystem import File, FileSocket
-import bashparse
+import bashparser
 
 class TestState(TestCase):
     
@@ -82,18 +82,18 @@ class TestState(TestCase):
 
 
     def test_replace(self):
-        """ Most of the replacement testing is actually in bashparse """
+        """ Most of the replacement testing is actually in bashparser """
         """ This should mirror test_bpInterpreterBase.test_replace """
         var_list = {'one':['two']}
         stdio = State(variables=var_list)
-        node = bashparse.parse("echo $one")
+        node = bashparser.parse("echo $one")
         replaced = stdio.replace(node)
-        self.assertTrue(replaced[0] == bashparse.parse('echo two')[0])
+        self.assertTrue(replaced[0] == bashparser.parse('echo two')[0])
 
         """ Thanks Wes for finding this bug """
-        node = bashparse.parse("echo a; b=3; echo $b")
+        node = bashparser.parse("echo a; b=3; echo $b")
         replaced = stdio.replace(node)
-        self.assertTrue(replaced[0] == bashparse.parse('echo a; b=3; echo 3')[0])
+        self.assertTrue(replaced[0] == bashparser.parse('echo a; b=3; echo 3')[0])
 
 
     def test_set_variable(self):
@@ -109,7 +109,7 @@ class TestState(TestCase):
 
     def test_update_variable_list(self):
          stdio = State()
-         node = bashparse.parse('a=b')[0]
+         node = bashparser.parse('a=b')[0]
          stdio.update_variable_list(node)
          self.assertTrue(stdio.variables['a'] == ['b'])
 

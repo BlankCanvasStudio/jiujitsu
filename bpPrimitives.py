@@ -1,5 +1,5 @@
 from bpFileSystem import FileSocket, File
-import bashparse
+import bashparser
 
 
 class ActionEntry():
@@ -105,7 +105,7 @@ class State:
 
     """ Replace all the aliases possible in the state """
     def replace(self, nodes, replace_blanks = True):
-        return bashparse.substitute_variables(nodes, self.variables, replace_blanks=replace_blanks)
+        return bashparser.substitute_variables(nodes, self.variables, replace_blanks=replace_blanks)
 
 
     """ Update the variables in the var list """
@@ -115,7 +115,7 @@ class State:
 
 
     def update_variable_list(self, node):
-        self.variables = bashparse.update_variable_list(node, self.variables)
+        self.variables = bashparser.update_variable_list(node, self.variables)
 
 
     def set_truth(self, name, value):

@@ -1,5 +1,5 @@
 import cmd, subprocess, os, stat, copy, json, re, inspect, pathlib
-import bashparse
+import bashparser
 try:
     from rich import print
 except Exception:
@@ -80,9 +80,9 @@ class Interpreter(cmd.Cmd):
             return
         path = pathlib.Path(filename).expanduser()
         if path.is_file():
-            self.prog_nodes = bashparse.parse(open(filename).read())
+            self.prog_nodes = bashparser.parse(open(filename).read())
             self.index = 0
-            print('=> ' + str(bashparse.NodeVisitor(self.prog_nodes[0])))
+            print('=> ' + str(bashparser.NodeVisitor(self.prog_nodes[0])))
         else:
             print('Cannot load file', filename, 'file not found')
 
@@ -107,7 +107,7 @@ class Interpreter(cmd.Cmd):
         if not node and not len(self.env.action_stack): return print('No nodes left. Please load more')
         if Flag('i') not in flags:
             self.index = self.index + 1
-        node_str = str(bashparse.NodeVisitor(node))
+        node_str = str(bashparser.NodeVisitor(node))
 
         """ All -e nodes need to be executed in environment so you can switch between them without issue """
         
@@ -135,7 +135,7 @@ class Interpreter(cmd.Cmd):
             return self.state([])
 
         if get_next_node():
-            print('=>', str(bashparse.NodeVisitor(get_next_node())))
+            print('=>', str(bashparser.NodeVisitor(get_next_node())))
 
 
     def do_undo(self, text):
@@ -212,13 +212,13 @@ class Interpreter(cmd.Cmd):
             return
         
         """ Even escaped commands must be run in env to maintain consistency when switching """
-        nodes = bashparse.parse(cmd)
+        nodes = bashparser.parse(cmd)
         for node in nodes:
             self.env.run(node)
 
         
     def do_build(self, text):
-        """ Builds the action stack for a given command. Useful for debugging the bashparse interpreter
+        """ Builds the action stack for a given command. Useful for debugging the bashparser interpreter
             Use the -a flag to append the specified action to the action stack, rather than emptying it first """
         # Convert args to command
         flags, args = self.parser.parse(text)
@@ -226,11 +226,11 @@ class Interpreter(cmd.Cmd):
 
         # Build the action stack for the node
         try:
-            nodes = bashparse.parse(cmd)
+            nodes = bashparser.parse(cmd)
             for node in nodes:
                 self.env.build(node, append= Flag('a') in flags)
         except:
-            print("Bashparse cannot parse the code provided")
+            print("bashparser cannot parse the code provided")
 
 
     def do_stack(self, text):
@@ -243,14 +243,14 @@ class Interpreter(cmd.Cmd):
 
 
     def do_parse(self, text):
-        """ Nice little parse wrapper for bashparse.parse()
+        """ Nice little parse wrapper for bashparser.parse()
             Parses whatever text you pass into the function and dumps the node """
         try:
-            nodes = bashparse.parse(text)
+            nodes = bashparser.parse(text)
             for node in nodes:
                 print(node.dump())
         except:
-            print("Bashparse could not parse text")
+            print("bashparser could not parse text")
     
 
     def do_shell(self, text):
@@ -260,13 +260,13 @@ class Interpreter(cmd.Cmd):
         flags, args = self.parser.parse(text)
         text = self.args_to_str(args)
         
-        repl_nodes = self.env.replace(bashparse.parse(text))
+        repl_nodes = self.env.replace(bashparser.parse(text))
         
         """ Convert the replaced nodes to text """
         
         for node in repl_nodes:
             
-            repl_text = str(bashparse.NodeVisitor(node))
+            repl_text = str(bashparser.NodeVisitor(node))
             if Flag('n') not in flags:
                 repl_text = 'echo "' + self.env.stdin() + '" | ' + repl_text
 
@@ -491,9 +491,9 @@ class Interpreter(cmd.Cmd):
         
         while current_index < len(self.prog_nodes) and current_index <= self.index + pos:
             if current_index == self.index:
-                print(str(current_index), '=>', '\t', str(bashparse.NodeVisitor(self.prog_nodes[current_index])) )
+                print(str(current_index), '=>', '\t', str(bashparser.NodeVisitor(self.prog_nodes[current_index])) )
             else:
-                print(str(current_index), '\t', str(bashparse.NodeVisitor(self.prog_nodes[current_index])) )
+                print(str(current_index), '\t', str(bashparser.NodeVisitor(self.prog_nodes[current_index])) )
             
             current_index += 1
         

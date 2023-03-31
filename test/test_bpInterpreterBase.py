@@ -3,7 +3,7 @@ from bpInterpreterBase import InterpreterBase, InterpreterError
 from bpInterpreter import Interpreter as Full_Interpreter
 from bpPrimitives import State
 from bpFileSystem import File, FileSocket
-import bashparse
+import bashparser
 
 class TestBpInterpreterBase(TestCase):
 
@@ -98,21 +98,21 @@ class TestBpInterpreterBase(TestCase):
         self.assertRaises(InterpreterError, InterpreterBase().replace, 1234)
         var_list = {'one':['two']}
         intr = InterpreterBase(variables=var_list)
-        node = bashparse.parse("echo $one")
+        node = bashparser.parse("echo $one")
         replaced = intr.replace(node)
-        self.assertTrue(replaced[0] == bashparse.parse('echo two')[0])
+        self.assertTrue(replaced[0] == bashparser.parse('echo two')[0])
 
         intr = InterpreterBase(variables={})
-        node = bashparse.parse("a=$b")
+        node = bashparser.parse("a=$b")
         replaced = intr.replace(node)
-        self.assertTrue(replaced[0] == bashparse.parse('a=')[0])
+        self.assertTrue(replaced[0] == bashparser.parse('a=')[0])
 
 
 
 
     def test_build(self):
         intr = Full_Interpreter()               # Need to use full interpreter so echo command is known
-        node = bashparse.parse("echo $one")[0]
+        node = bashparser.parse("echo $one")[0]
 
         self.assertRaises(InterpreterError, intr.build, 1234)
         self.assertRaises(InterpreterError, intr.build, node, 1234)
@@ -169,7 +169,7 @@ class TestBpInterpreterBase(TestCase):
         self.assertTrue(intr.inch() == False)
         self.assertTrue(intr.state.STDIO.OUT == '')
 
-        node = bashparse.parse('echo hello world')[0]
+        node = bashparser.parse('echo hello world')[0]
         intr.build(node)
 
         self.assertTrue(intr.state.STDIO.OUT == '')
@@ -182,8 +182,8 @@ class TestBpInterpreterBase(TestCase):
         intr = Full_Interpreter()
         self.assertRaises(InterpreterError, intr.run, 1234)
 
-        node1 = bashparse.parse('echo hello world')[0]
-        node2 = bashparse.parse('echo this')[0]
+        node1 = bashparser.parse('echo hello world')[0]
+        node2 = bashparser.parse('echo this')[0]
         
         """ Verify it works normally """
         intr.run(node1)
@@ -204,7 +204,7 @@ class TestBpInterpreterBase(TestCase):
 
     def test_run_command(self):
         """ Test valid command pushed onto stack """
-        cmd_node = bashparse.parse('echo this')[0]
+        cmd_node = bashparser.parse('echo this')[0]
         intr = Full_Interpreter()
         intr.run_command(cmd_node.parts[0], cmd_node.parts[1:], cmd_node)
 
@@ -212,20 +212,20 @@ class TestBpInterpreterBase(TestCase):
         self.assertTrue(str(intr.action_stack[-1]) == 'Command node: echo')
 
         """ Test assignment node """
-        assign_node = bashparse.parse('a=b')[0]
+        assign_node = bashparser.parse('a=b')[0]
         intr.run_command(assign_node.parts[0], assign_node.parts[1:], assign_node)
         self.assertTrue(len(intr.action_stack) == 2)
         self.assertTrue(str(intr.action_stack[-1]) == 'Variable Assignment')
 
         """ Test invalid command push onto stack """
-        unknown_node = bashparse.parse('TestingCommand -flg arg ument')[0]
+        unknown_node = bashparser.parse('TestingCommand -flg arg ument')[0]
         intr.run_command(unknown_node.parts[0], unknown_node.parts[1:], unknown_node)
         self.assertTrue(len(intr.action_stack) == 3)
         self.assertTrue(str(intr.action_stack[-1]) == 'Unknown command: TestingCommand. Possibly Passing')
 
         """ Verify command substitution pushing onto the stack """
         intr.action_stack = []
-        cmd_sub_node = bashparse.parse('a=$(echo this)')[0]
+        cmd_sub_node = bashparser.parse('a=$(echo this)')[0]
         intr.run_command(cmd_sub_node.parts[0], cmd_sub_node.parts[1:], cmd_sub_node)
         self.assertTrue(str(intr.action_stack[0]) == 'Resolving Command Substitution: ')
         self.assertTrue(str(intr.action_stack[1]) == 'Variable Assignment')
@@ -253,25 +253,25 @@ class TestBpInterpreterBase(TestCase):
 
     def test_command_substitution(self):
         # Verify the replacement works
-        node = bashparse.parse("f=$(cd $b)")[0]
+        node = bashparser.parse("f=$(cd $b)")[0]
         intr = Full_Interpreter()
         intr.run(node)
         self.assertTrue(intr.state.variables == {'f':[''], 'b':['']})
 
         # Verify the file system changes properly with cp
         intr = Full_Interpreter()
-        node = bashparse.parse("$(cp this that)")[0]
+        node = bashparser.parse("$(cp this that)")[0]
         intr.run(node)
         expected_intr = Full_Interpreter()
-        expected_intr.run(bashparse.parse("cp this that")[0])
+        expected_intr.run(bashparser.parse("cp this that")[0])
         self.assertTrue(intr.state.fs == expected_intr.state.fs)
 
         # Verify the file system changes properly with mv
         intr = Full_Interpreter()
-        node = bashparse.parse("$(mv over rainbow)")[0]
+        node = bashparser.parse("$(mv over rainbow)")[0]
         intr.run(node)
         expected_intr = Full_Interpreter()
-        expected_intr.run(bashparse.parse("mv over rainbow")[0])
+        expected_intr.run(bashparser.parse("mv over rainbow")[0])
         self.assertTrue(intr.state.fs == expected_intr.state.fs)
 
 
@@ -280,7 +280,7 @@ class TestBpInterpreterBase(TestCase):
 
         """ Verify the variable assignment only happens when inched through. 
             This was a bug that happened """
-        bash_node = bashparse.parse('echo a; b=3; echo $b; b=4; echo $b')[0]
+        bash_node = bashparser.parse('echo a; b=3; echo $b; b=4; echo $b')[0]
         intr = Full_Interpreter()
         expected_state = State()
         intr.build(bash_node)
