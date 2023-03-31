@@ -1,3 +1,4 @@
+#!/bin/python3
 import cmd, subprocess, os, stat, copy, json, re, inspect, pathlib
 import bashparser
 try:
@@ -397,7 +398,7 @@ class Interpreter(cmd.Cmd):
             self.maintain_history = not self.maintain_history
 
 
-    def do_quit(self, text):
+    def do_exit(self, text):
         "Quits the interpreter"
         exit()
 

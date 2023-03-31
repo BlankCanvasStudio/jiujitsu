@@ -64,6 +64,13 @@ class InterpreterBase():
     """ Used when converting CLI state to json file """
     def json(self):
         return {**self.state.json(), **{ "execute": 't' if self.execute else 'f' }}
+    
+    """ Used to convert a node into a command and argument. Need for by reference substitution in CMD SUBS and 
+        has to be used in any interpreter functions implemented """
+    def parse_node(self, node):
+        cmd = node.parts[0]
+        args = node.parts[1:]
+        return cmd, args
 
 
     """ Set the working directory """
@@ -341,7 +348,7 @@ class InterpreterBase():
 
 
     def resolve_command_substitution(self, node):
-        for part in node.parts:
+        for i, part in enumerate(node.parts):
             if part.kind == 'commandsubstitution':
                 def temp_func(node, part):
                     Interpreter = self.__class__
@@ -349,33 +356,36 @@ class InterpreterBase():
                     subshell.__init__()
                     commandsub = part.command
                     subshell.run(commandsub)
-                    results = subshell.state.STDIO.read()
+                    results = subshell.stdout()
+                    subshell.stdout('')
 
                     # The file sytem in the subshell is going to update the current file system
                     self.state.fs.update(subshell.state.fs)
 
                     # Adjust the tree with the replaced results
-                    node.word = node.word[:part.pos[0]] + results + node.word[part.pos[1]:]
+                    node.word = node.word[:(part.pos[0] - node.pos[0])] + results + node.word[(part.pos[0] - node.pos[0]) + part.pos[1]:]
 
-                action = ActionEntry(func=temp_func, args=[node, part], text='Resolving Command Substitution: ', code=str(bashparser.NodeVisitor(node)))
+                action = ActionEntry(func=temp_func, args=[node, part], text='Resolving Command Substitution: ' + str(bashparser.NodeVisitor(node)), code=str(bashparser.NodeVisitor(node)))
                 self.action_stack += [ action ]
 
     def run_command(self, command, args, node):
-        
+
         if command.kind == 'word':
             for part in node.parts:
                 self.resolve_command_substitution(part)
-            if command.word in self.bin:
-                """ Very cheeky dynamic programming. Hopefully it doesn't kill performance too much """
-                func = getattr(self, 'f_'+command.word)
-                def temp_func(command, args, node):
+            def temp_func(command, args, node):
+                command = node.parts[0]
+                if command.word in self.bin:
+                    """ Very cheeky dynamic programming. Hopefully it doesn't kill performance too much """
+                    func = getattr(self, 'f_'+command.word)
+                    # def temp_func(command, args, node):
                     node = self.replace(node)[0]
-                    func(node.parts[0], node.parts[1:], node)
-                action = ActionEntry(func=temp_func, text='Command node: ' + command.word, args=[command, args, node], code=str(bashparser.NodeVisitor(node)))
-                self.action_stack += [ action ]
+                    func(node)
+                    # action = ActionEntry(func=temp_func, text='Command node: ' + command.word, args=[command, args, node], code=str(bashparser.NodeVisitor(node)))
+                    # self.action_stack += [ action ]
 
-            else: 
-                def temp_func():
+                else: 
+                    # def temp_func():
                     if len(command.word.strip()) or len(args):
                         resp = ''
                         while resp != 'n' and resp != 'y':
@@ -385,9 +395,13 @@ class InterpreterBase():
                         elif resp == 'y':
                             pass
 
-                action = ActionEntry(func=temp_func, text='Unknown command: ' + command.word + '. Possibly Passing', code=str(bashparser.NodeVisitor(node)))
+                    # action = ActionEntry(func=temp_func, text='Unknown command: ' + command.word + '. Possibly Passing', code=str(bashparser.NodeVisitor(node)))
 
-                self.action_stack += [ action ]
+                    # self.action_stack += [ action ]
+
+            action = ActionEntry(func=temp_func, text='Command node: ' + command.word, args=[command, args, node], code=str(bashparser.NodeVisitor(node)))
+            self.action_stack += [ action ]
+
 
 
         elif command.kind == 'assignment':

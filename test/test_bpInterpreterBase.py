@@ -221,13 +221,13 @@ class TestBpInterpreterBase(TestCase):
         unknown_node = bashparser.parse('TestingCommand -flg arg ument')[0]
         intr.run_command(unknown_node.parts[0], unknown_node.parts[1:], unknown_node)
         self.assertTrue(len(intr.action_stack) == 3)
-        self.assertTrue(str(intr.action_stack[-1]) == 'Unknown command: TestingCommand. Possibly Passing')
+        self.assertTrue(str(intr.action_stack[-1]) == 'Command node: TestingCommand')
 
         """ Verify command substitution pushing onto the stack """
         intr.action_stack = []
         cmd_sub_node = bashparser.parse('a=$(echo this)')[0]
         intr.run_command(cmd_sub_node.parts[0], cmd_sub_node.parts[1:], cmd_sub_node)
-        self.assertTrue(str(intr.action_stack[0]) == 'Resolving Command Substitution: ')
+        self.assertTrue(str(intr.action_stack[0]) == 'Resolving Command Substitution: a=$(echo this)')
         self.assertTrue(str(intr.action_stack[1]) == 'Variable Assignment')
 
 
@@ -273,6 +273,12 @@ class TestBpInterpreterBase(TestCase):
         expected_intr = Full_Interpreter()
         expected_intr.run(bashparser.parse("mv over rainbow")[0])
         self.assertTrue(intr.state.fs == expected_intr.state.fs)
+
+        # Verify the stdout is replaced properly with echo
+        intr = Full_Interpreter()
+        node = bashparser.parse("echo $(echo this)")[0]
+        intr.run(node)
+        self.assertTrue(intr.stdout() == 'this')
 
 
     def test_interpreter(self):
