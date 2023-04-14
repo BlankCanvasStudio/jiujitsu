@@ -224,7 +224,8 @@ class Interpreter(cmd.Cmd):
         # Convert args to command
         flags, args = self.parser.parse(text)
         cmd = self.args_to_str(args)
-
+        if not len(cmd): return
+        
         # Build the action stack for the node
         try:
             nodes = bashparser.parse(cmd)

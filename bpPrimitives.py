@@ -66,6 +66,9 @@ class State:
             if self.open_sockets[i] != other.open_sockets[i]: return False
         if self.truths != other.truths: return False
         return True
+    
+    def __str__(self):
+        return self.text(showFiles=False)
         
 
     def text(self, showFiles = False):
