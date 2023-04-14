@@ -280,40 +280,40 @@ class InterpreterBase():
 
         elif node.kind == 'for':
             # This can be formalized in a real parser way. Need to find all forms of for loop though
-            parts = node.parts
-            if parts[0].word == 'for' and parts[2].word == 'in' and (parts[4].word == ';' or parts[4].word == 'do'):
-                """ Action Queue Section """
-                # Save the iterator to the variable list 
-                self.state.update_variable_list(node)
-                action = ActionEntry(func=self.emptyFunc, text='for loop entry')
+            parts = copy.copy(node.parts)
+
+            """ Action Queue Section """
+            # Save the iterator to the variable list 
+            self.state.update_variable_list(node)
+            action = ActionEntry(func=self.emptyFunc, text='for loop entry')
+            self.action_stack += [ action ]
+
+            var_name = node.parts[1].word
+            var_values = self.state.variables[var_name]
+
+            # Find the actual commands to execute by skipping header section
+            while not (hasattr(parts[0], 'word') and parts[0].word == 'do'): parts.pop(0)
+            parts.pop(0)       # Remove the actual 'do' node
+            parts = parts[:-1] # Remove the done 
+
+            # Iterate over the values in the for loop
+            for val in var_values:
+                # To initiate this iteration of the for loop
+                def temp_func(var_name, val):
+                    self.state.set_variable(var_name, val)
+                action = ActionEntry(func=temp_func, args=[var_name, val], text='Set loop iterator value for next itr')
                 self.action_stack += [ action ]
 
-                var_name = node.parts[1].word
-                var_values = self.state.variables[var_name]
+                # Push all the commands for this for loop iteration
+                for cmd in parts: # last element is 'done'
+                    # This should automatically append stuff to the action_stack so nothing really needs to be done?
+                    vstr2 = NodeVisitor(cmd)
+                    vstr2.apply(self.interpreter, vstr2)
 
-                # Ignore unnecessary do and ; nodes
-                parts = parts[5:]
-                while hasattr(parts[0], 'word') and (parts[0].word == 'do' or parts[0].word == ';'):
-                    parts.pop(0) 
-
-                # Iterate over the values in the for loop
-                for val in var_values:
-                    # To initiate this iteration of the for loop
-                    def temp_func(var_name, val):
-                        self.state.set_variable(var_name, val)
-                    action = ActionEntry(func=temp_func, args=[var_name, val], text='Set loop iterator value for next itr')
-                    self.action_stack += [ action ]
-
-                    # Push all the commands for this for loop iteration
-                    for cmd in parts[:-1]: # last element is 'done'
-                        # This should automatically append stuff to the action_stack so nothing really needs to be done?
-                        vstr2 = NodeVisitor(cmd)
-                        vstr2.apply(self.interpreter, vstr2)
-
-                # Remove the iterator after the for loop exits
-                self.state.variables.pop(var_name)
-                action = ActionEntry(func=self.emptyFunc, text='Exit for loop')
-                self.action_stack += [ action ]
+            # Remove the iterator after the for loop exits
+            self.state.variables.pop(var_name)
+            action = ActionEntry(func=self.emptyFunc, text='Exit for loop')
+            self.action_stack += [ action ]
 
 
         elif node.kind == 'if':

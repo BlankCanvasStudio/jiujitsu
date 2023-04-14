@@ -20,6 +20,13 @@ testing2=thisaval
 testingg=$testinggg
 cd /tmp &  cd /var/run &  cd /mnt &  cd /root &  cd /;
 cd /tmp || cd /var/run || cd /mnt || cd /root || cd /;
+for i in 1 2 3 4;
+do
+  for j in 1 2 3 4;
+  do 
+    echo $i $j;
+  done
+done
 
 
 
