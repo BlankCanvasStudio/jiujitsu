@@ -131,7 +131,7 @@ class InterpreterBase():
         if not len(self.action_stack):
             output += 'Empty' + '\n'
         return output
-        
+
 
     def set_variable(self, name, value):
         if type(name) is not str: raise InterpreterError('Interpreter.set_variable(name != str)')
@@ -299,9 +299,9 @@ class InterpreterBase():
                 # Iterate over the values in the for loop
                 for val in var_values:
                     # To initiate this iteration of the for loop
-                    def temp_func():
+                    def temp_func(var_name, val):
                         self.state.set_variable(var_name, val)
-                    action = ActionEntry(func=temp_func, text='Set loop iterator value for next itr')
+                    action = ActionEntry(func=temp_func, args=[var_name, val], text='Set loop iterator value for next itr')
                     self.action_stack += [ action ]
 
                     # Push all the commands for this for loop iteration
