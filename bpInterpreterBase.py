@@ -166,7 +166,7 @@ class InterpreterBase():
             print('Truth '+ name + ' not in truth dictionary. Add it?')
             resp = ''
             while resp != 'n' and resp != 'y':
-                resp = input('(y/n)')
+                resp = input('(y/n) ')
             if resp == 'n':
                 raise InterpreterError('InterpreterBase.test_truth is unknown and user refused to add.')
             elif resp == 'y':
@@ -319,28 +319,70 @@ class InterpreterBase():
         elif node.kind == 'if':
              # Structure of if node parts is [if, boolean, then, body, elif, boolean, then, body, else, body, fi]
             parts = copy.copy(node.parts)
+            all_boolean_conditions = [] # Used to check if 'else' section needs to exe
             while len(parts):
-                # Nice stack based parsing stuff. Could formalize
-                resv = parts.pop(0) # Remove if reserved word
-                if resv.word != 'else': boolean_condition = parts.pop(0)
-                if hasattr(parts[0], 'word') and parts[0].word =='then': parts.pop(0) # Remove then reserved word
-                body = parts.pop(0)
+                # Nice stack based parsing stuff. Could formalize. Lmao, I did
+                resv = parts.pop(0) # Remove if/elif/else reserved word
+                boolean_string = ''
+                if resv.word != 'else': 
+                    boolean_condition = parts.pop(0)
+                    boolean_string = str(NodeVisitor(boolean_condition))
+                    parts.pop(0)    # Remove then reserved word
+
+                body = []
+                while len(parts) and parts[0].kind !='reservedword': body += [ parts.pop(0) ]
                 if parts[0].word == 'fi': parts.pop(0) # Remove the fi, if not loop
 
-                # Determine truthiness
-                boolean_string = str(NodeVisitor(boolean_condition)) 
-                if boolean_string in self.state.truths:   # Check if user has already input the validity
-                    resp = self.state.truths[boolean_string]
-                else:                               # They haven't, so we need to ask
-                    resp = ''
-                    while resp != 't' and resp != 'f':
-                        resp = input('Encountered Boolean condition ' + boolean_string + ' is it true or false? (t/f)')
-                    self.state.truths[boolean_string] = resp
-                if resp == 't': 
-                    def temp_func():
-                            vstr2 = NodeVisitor(body)
-                            self.interpreter(body, vstr2)
-                    action = ActionEntry(func=temp_func, text='If node with positive result')
+
+                def find_truth(boolean_string):
+                    # Determine truthiness
+                    if boolean_string in self.state.truths:   # Check if user has already input the validity
+                        resp = self.state.truths[boolean_string]
+                    else:                               # They haven't, so we need to ask
+                        resp = ''
+                        while resp != 't' and resp != 'f':
+                            resp = input('Encountered Boolean condition ' + boolean_string + ' is it true or false? (t/f) ')
+                        self.state.truths[boolean_string] = resp
+
+
+                def execte_truth(boolean_string, body, all_boolean_conditions, if_type):
+                    # If one before executed, skip out 
+                    for condition in all_boolean_conditions: 
+                        if self.state.truths[condition] == 't': return
+
+                    if if_type=='else' or self.state.truths[boolean_string] == 't': 
+                        if type(body) is not list: body = [ body ]
+                        # Save the current action stack, generate a new body, append the action stack to it
+                        # This way we can inject commands into the action stack during run time. It sucks but necessary
+                        old_action_stack = copy.deepcopy(self.action_stack)
+                        add_to_action_stack = []
+                        for node in body:
+                            self.action_stack = []
+                            vstr2 = NodeVisitor(node)
+                            self.interpreter(node, vstr2)
+                            add_to_action_stack += self.action_stack
+                        self.action_stack = add_to_action_stack + old_action_stack
+                
+                def else_function():
+                    pass    
+                
+                if resv.word == 'else':
+                    truth_action = ActionEntry(func = else_function, text='Determine if else should execute')
+                else:
+                    truth_action = ActionEntry(func = find_truth, args=[boolean_string], text='Determine boolean statement truth')
+
+                build_results = ActionEntry(func = execte_truth, args=[boolean_string, body, copy.copy(all_boolean_conditions), resv.word], text='Possibly append actions to stack')   
+
+                if len(boolean_string):
+                    all_boolean_conditions += [ boolean_string ]
+
+                self.action_stack += [ truth_action, build_results ]
+        
+        elif node.kind == 'reservedword':
+            if node.word == '(' or node.word == ')':
+                pass
+            else:
+                raise ValueError("Invalid Resevered Word Node type in bashparser interpreter: " + node.kind + '\n' + node.dump())
 
         else:
             raise ValueError("Invalid Node type in bashparser interpreter: " + node.kind + '\n' + node.dump())
@@ -390,7 +432,7 @@ class InterpreterBase():
                     if len(command.word.strip()) or len(args):
                         resp = ''
                         while resp != 'n' and resp != 'y':
-                            resp = input('Unknown command ' + command.word + ' encouncered. Skip? (y/n)')
+                            resp = input('Unknown command ' + command.word + ' encouncered. Skip? (y/n) ')
                         if resp == 'n':
                             raise ValueError("Command " + command.word + " not implemented")
                         elif resp == 'y':

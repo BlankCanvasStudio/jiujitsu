@@ -37,8 +37,6 @@ class Interpreter(InterpreterBase):
 
     def f_wget(self, node):
         command, args = self.parse_node(node)
-        print(command)
-        print(args)
         if validators.url(args[0].word): 
             added = False
             while not added:
