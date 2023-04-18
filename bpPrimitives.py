@@ -1,5 +1,5 @@
 from bpFileSystem import FileSocket, File
-import bashparser
+import bashparser, copy
 
 
 class ActionEntry():
@@ -55,6 +55,12 @@ class State:
         self.open_sockets = open_sockets
         self.truths = truths 
 
+        """ Used when implementing subshells """
+        self.starting_working_dir = working_dir
+        self.STDIOS_above = []
+        self.working_dirs_above = []
+        self.variables_above = []
+
 
     def __eq__(self, other):
         if self.STDIO != other.STDIO: return False
@@ -70,6 +76,28 @@ class State:
     def __str__(self):
         return self.text(showFiles=False)
         
+
+    def enter_subshell(self):
+        # Save the info
+        self.STDIOS_above += [ copy.deepcopy(self.STDIO) ]
+        self.working_dirs_above += [ copy.deepcopy(self.working_dir) ]
+        self.variables_above += [ copy.deepcopy(self.variables) ]
+        # Create new info
+        self.STDIO = FileSocket(id_num = 0)
+        self.working_dir = self.starting_working_dir
+        self.variables = {}
+
+    def exit_subshell(self):
+        if len(self.STDIOS_above):
+            self.STDIO = self.STDIOS_above[-1]
+            self.STDIOS_above = self.STDIOS_above[:-1]
+        if len(self.working_dirs_above):
+            self.working_dir = self.working_dirs_above[-1]
+            self.working_dirs_above = self.working_dirs_above[:-1]
+        if len(self.variables_above):
+            self.variables = self.variables_above[-1]
+            self.variables_above = self.variables_above[:-1]
+
 
     def text(self, showFiles = False):
         output = 'Working directory: ' + repr(self.working_dir) +'\n'

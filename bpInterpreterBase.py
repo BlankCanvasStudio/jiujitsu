@@ -393,22 +393,31 @@ class InterpreterBase():
     def resolve_command_substitution(self, node):
         for i, part in enumerate(node.parts):
             if part.kind == 'commandsubstitution':
-                def temp_func(node, part):
-                    Interpreter = self.__class__
-                    subshell = Interpreter()
-                    subshell.__init__()
-                    commandsub = part.command
-                    subshell.run(commandsub)
-                    results = subshell.stdout()
-                    subshell.stdout('')
+                
+                def build_cmd_sub(node, part):
+                    # Enter the subshell
+                    self.state.enter_subshell()
 
-                    # The file sytem in the subshell is going to update the current file system
-                    self.state.fs.update(subshell.state.fs)
+                    # Build the new commands 
+                    commandsub = part.command
+                    old_action_stack = copy.copy(self.action_stack)
+                    self.action_stack = []
+                    self.interpreter(commandsub, self)
+                    self.action_stack += old_action_stack
+                
+                def replace_cmd_sub_results(node, part):
+                    results = self.stdout()
+                    self.stdout('')
 
                     # Adjust the tree with the replaced results
                     node.word = node.word[:(part.pos[0] - node.pos[0])] + results + node.word[(part.pos[0] - node.pos[0]) + part.pos[1]:]
 
-                action = ActionEntry(func=temp_func, args=[node, part], text='Resolving Command Substitution: ' + str(bashparser.NodeVisitor(node)), code=str(bashparser.NodeVisitor(node)))
+                    # Exit the subshell env
+                    self.state.exit_subshell()
+
+                action = ActionEntry(func=build_cmd_sub, args=[node,part], text='Enter Command Substitution Env: ' + str(bashparser.NodeVisitor(node)), code=str(bashparser.NodeVisitor(node)))
+                self.action_stack += [ action ]
+                action = ActionEntry(func=replace_cmd_sub_results, args=[node, part], text='Exiting Command Substitution Env: ' + str(bashparser.NodeVisitor(node)), code=str(bashparser.NodeVisitor(node)))
                 self.action_stack += [ action ]
 
     def run_command(self, command, args, node):

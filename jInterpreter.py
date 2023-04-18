@@ -81,9 +81,12 @@ class Interpreter(cmd.Cmd):
             return
         path = pathlib.Path(filename).expanduser()
         if path.is_file():
-            self.prog_nodes = bashparser.parse(open(filename).read())
-            self.index = 0
-            print('=> ' + str(bashparser.NodeVisitor(self.prog_nodes[0])))
+            try:
+                self.prog_nodes = bashparser.parse(open(filename).read())
+                print('=> ' + str(bashparser.NodeVisitor(self.prog_nodes[0])))
+                self.index = 0
+            except:
+                print('bashlex failed to build ast for file. No state has been changed')
         else:
             print('Cannot load file', filename, 'file not found')
 

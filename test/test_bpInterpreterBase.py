@@ -227,8 +227,9 @@ class TestBpInterpreterBase(TestCase):
         intr.action_stack = []
         cmd_sub_node = bashparser.parse('a=$(echo this)')[0]
         intr.run_command(cmd_sub_node.parts[0], cmd_sub_node.parts[1:], cmd_sub_node)
-        self.assertTrue(str(intr.action_stack[0]) == 'Resolving Command Substitution: a=$(echo this)')
-        self.assertTrue(str(intr.action_stack[1]) == 'Variable Assignment')
+        self.assertTrue(str(intr.action_stack[0]) == 'Enter Command Substitution Env: a=$(echo this)')
+        self.assertTrue(str(intr.action_stack[1]) == 'Exiting Command Substitution Env: a=$(echo this)')
+        self.assertTrue(str(intr.action_stack[2]) == 'Variable Assignment')
 
 
     def test_set_truth(self):
