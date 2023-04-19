@@ -214,22 +214,23 @@ class TestBpInterpreterBase(TestCase):
         """ Test assignment node """
         assign_node = bashparser.parse('a=b')[0]
         intr.run_command(assign_node.parts[0], assign_node.parts[1:], assign_node)
-        self.assertTrue(len(intr.action_stack) == 2)
+        self.assertTrue(len(intr.action_stack) == 3)
         self.assertTrue(str(intr.action_stack[-1]) == 'Variable Assignment')
 
         """ Test invalid command push onto stack """
         unknown_node = bashparser.parse('TestingCommand -flg arg ument')[0]
         intr.run_command(unknown_node.parts[0], unknown_node.parts[1:], unknown_node)
-        self.assertTrue(len(intr.action_stack) == 3)
+        self.assertTrue(len(intr.action_stack) == 4)
         self.assertTrue(str(intr.action_stack[-1]) == 'Command node: TestingCommand')
 
         """ Verify command substitution pushing onto the stack """
         intr.action_stack = []
         cmd_sub_node = bashparser.parse('a=$(echo this)')[0]
         intr.run_command(cmd_sub_node.parts[0], cmd_sub_node.parts[1:], cmd_sub_node)
-        self.assertTrue(str(intr.action_stack[0]) == 'Enter Command Substitution Env: a=$(echo this)')
-        self.assertTrue(str(intr.action_stack[1]) == 'Exiting Command Substitution Env: a=$(echo this)')
-        self.assertTrue(str(intr.action_stack[2]) == 'Variable Assignment')
+        self.assertTrue(str(intr.action_stack[0]) == 'Entering Assignment Node: a=$(echo this)')
+        self.assertTrue(str(intr.action_stack[1]) == 'Enter Command Substitution Env: a=$(echo this)')
+        self.assertTrue(str(intr.action_stack[2]) == 'Exiting Command Substitution Env: a=$(echo this)')
+        self.assertTrue(str(intr.action_stack[3]) == 'Variable Assignment')
 
 
     def test_set_truth(self):
@@ -295,11 +296,17 @@ class TestBpInterpreterBase(TestCase):
         intr.inch() # init state for command
         self.assertTrue(expected_state == intr.state)
         intr.inch() # list node entry
+        intr.inch() # Resetting stdout for a new command
+        expected_state.STDOUT('')
         self.assertTrue(expected_state == intr.state)
         intr.inch() # echo command
         expected_state.STDOUT('a')
         self.assertTrue(expected_state == intr.state)
         intr.inch() # Transfer character
+        intr.inch() # Resetting stdout for a new command
+        expected_state.STDOUT('')
+        self.assertTrue(expected_state == intr.state)
+        intr.inch() # Entering assignment node
         expected_state.STDOUT('')
         self.assertTrue(expected_state == intr.state)
         intr.inch() # Variable assignment
@@ -308,16 +315,26 @@ class TestBpInterpreterBase(TestCase):
         intr.inch() # Transfer character
         expected_state.STDOUT('')
         self.assertTrue(expected_state == intr.state)
+        intr.inch() # Resetting stdout for a new command
+        expected_state.STDOUT('')
+        self.assertTrue(expected_state == intr.state)
         intr.inch() # echo command
         expected_state.STDOUT('3')
         self.assertTrue(expected_state == intr.state)
         intr.inch() # Transfer character
+        intr.inch() # Resetting stdout for a new command
+        expected_state.STDOUT('')
+        self.assertTrue(expected_state == intr.state)
+        intr.inch() # Entering assignment node
         expected_state.STDOUT('')
         self.assertTrue(expected_state == intr.state)
         intr.inch() # Variable assignment
         expected_state.set_variable('b', '4')
         self.assertTrue(expected_state == intr.state)
         intr.inch() # Transfer character
+        expected_state.STDOUT('')
+        self.assertTrue(expected_state == intr.state)
+        intr.inch() # Resetting stdout for a new command
         expected_state.STDOUT('')
         self.assertTrue(expected_state == intr.state)
         intr.inch() # echo command

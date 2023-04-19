@@ -57,6 +57,9 @@ class InterpreterBase():
 
 
     """ Used in Action Queues """
+    def transferFunc(self):
+        self.stdout('')
+    
     def emptyFunc(self):
         pass
 
@@ -241,7 +244,7 @@ class InterpreterBase():
             for part in node.list:
                 """ Action Queue Section """
                 # Compound nodes don't need to be added to stack cause basically just wrapper ?
-                action = ActionEntry(func=self.emptyFunc, text='compound node entry')
+                action = ActionEntry(func=self.transferFunc, text='compound node entry')
                 self.action_stack += [ action ]
                 vstr2 = NodeVisitor(part)
                 self.interpreter(part, vstr2)
@@ -249,11 +252,13 @@ class InterpreterBase():
 
         elif node.kind == 'list':
             self.execute = True
-            action = ActionEntry(func=self.emptyFunc, text='list node entry')
+            action = ActionEntry(func=self.transferFunc, text='list node entry')
             self.action_stack += [ action ]
 
             for i, part in enumerate(node.parts):
                 if i % 2 == 0:              # Its an actual command
+                    action = ActionEntry(text='Resetting for new command', func=self.transferFunc)
+                    self.action_stack += [ action ]
                     vstr2 = NodeVisitor(part)
                     self.interpreter(part, vstr2)
 
@@ -270,8 +275,8 @@ class InterpreterBase():
                             pass
                         elif part.op == ';' or part.op == '\n':
                             self.execute = True
-                            self.state.STDIN('')
-                            self.state.STDOUT('')
+                            # self.state.STDIN('')
+                            # self.state.STDOUT('')
                         else:
                             raise ValueError("Op type not implemented in interpreter: ", part.op)
 
@@ -285,7 +290,7 @@ class InterpreterBase():
             """ Action Queue Section """
             # Save the iterator to the variable list 
             self.state.update_variable_list(node)
-            action = ActionEntry(func=self.emptyFunc, text='for loop entry')
+            action = ActionEntry(func=self.transferFunc, text='for loop entry')
             self.action_stack += [ action ]
 
             var_name = node.parts[1].word
@@ -312,7 +317,7 @@ class InterpreterBase():
 
             # Remove the iterator after the for loop exits
             self.state.variables.pop(var_name)
-            action = ActionEntry(func=self.emptyFunc, text='Exit for loop')
+            action = ActionEntry(func=self.transferFunc, text='Exit for loop')
             self.action_stack += [ action ]
 
 
@@ -340,10 +345,29 @@ class InterpreterBase():
                         resp = self.state.truths[boolean_string]
                     else:                               # They haven't, so we need to ask
                         resp = ''
-                        while resp != 't' and resp != 'f':
-                            resp = input('Encountered Boolean condition ' + boolean_string + ' is it true or false? (t/f) ')
-                        self.state.truths[boolean_string] = resp
+                        while resp != 't' and resp != 'f' and resp != 'e':
+                            resp = input('Encountered Boolean condition ' + boolean_string + ' is it true, false or would you like to execute it? (t/f/e) ')
+                        
+                        if resp != 'e':
+                            self.state.truths[boolean_string] = resp
+                            return
+                        
+                        # Set up the execution option
+                        old_action_stack = copy.deepcopy(self.action_stack)
+                        self.action_stack = []
+                        # Remove ; to present the resetting of the output
+                        boolean_string_trimmed = boolean_string
+                        if boolean_string[-1] == ';': 
+                            boolean_string_trimmed = boolean_string[:-1]
+                        self.interpreter(bashparser.parse(boolean_string_trimmed)[0], self)
+                        
 
+                        def check_if_boolean_passed(boolean_string):
+                            if self.state.STDOUT() == '': self.state.truths[boolean_string] = 'f'
+                            else : self.state.truths[boolean_string] = 't'
+
+                        self.action_stack += [ ActionEntry(func=check_if_boolean_passed, args=[boolean_string], text='Determine if boolean execution is true') ]
+                        self.action_stack += old_action_stack
 
                 def execte_truth(boolean_string, body, all_boolean_conditions, if_type):
                     # If one before executed, skip out 
@@ -355,12 +379,15 @@ class InterpreterBase():
                         # Save the current action stack, generate a new body, append the action stack to it
                         # This way we can inject commands into the action stack during run time. It sucks but necessary
                         old_action_stack = copy.deepcopy(self.action_stack)
-                        add_to_action_stack = []
+                        enter_loop = ActionEntry(text = 'Enter For Loop', func=self.transferFunc)
+                        add_to_action_stack = [ enter_loop ]
                         for node in body:
                             self.action_stack = []
                             vstr2 = NodeVisitor(node)
                             self.interpreter(node, vstr2)
                             add_to_action_stack += self.action_stack
+                        exit_loop = ActionEntry(text='Exit For Loop', func=self.emptyFunc)
+                        add_to_action_stack += [ exit_loop ]
                         self.action_stack = add_to_action_stack + old_action_stack
                 
                 def else_function():
@@ -476,6 +503,8 @@ class InterpreterBase():
 
 
         elif command.kind == 'assignment':
+            action = ActionEntry(func=self.transferFunc, text='Entering Assignment Node: ' + str(NodeVisitor(command)))
+            self.action_stack += [ action ]
             to_remove = []  # need to remove backwards to keep the indexes right
             for part in node.parts:
                 if len(part.parts):
