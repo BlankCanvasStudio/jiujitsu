@@ -132,12 +132,12 @@ class TestjInterpreter(TestCase):
 
     def test_undo(self):
         """ Verify undo works in the init case """
-        intr = Interpreter()
+        intr = Interpreter(config_file='./judo_config')
         intr.env.state.STDIO.IN = "something random"
         self.squelch()
         intr.do_undo('')
         self.unsquelch()
-        intr2 = Interpreter()
+        intr2 = Interpreter(config_file='./judo_config')
         self.assertTrue(intr.env == intr2.env)
         self.assertTrue(intr.index == intr2.index)
         self.assertTrue(len(intr.history_stack) == len(intr2.history_stack))

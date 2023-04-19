@@ -1,4 +1,22 @@
 #!/bin/bash
+
+echo "this" > dump1.txt > dump2.txt
+if [ $(ping www.google.com >/dev/null|grep "bytes of data" | wc -l ) -gt '0' ];
+then
+  echo this;
+else
+  echo that
+fi
+
+bash the-dream.sh 'install'
+
+a=b
+unset a
+
+history -n > /dev/null 2>&1
+
+read ~/.judo_config  
+
 if ! ( [ -x /usr/local/bin/jj ] || [ -x /usr/bin/jj ] ); then
   echo this
 fi
@@ -7,36 +25,24 @@ while read x; do
   echo $x
 done < ~/.judo_config;
 
-a=b
-unset a
-
 USERZ=$(
   echo "root"
   cat ~/.judo_config | grep "run"
 )
 
-if [ $(ping www.google.com >/dev/null|grep "bytes of data" | wc -l ) -gt '0' ];
-then
-  echo this;
-else
-  echo that
-fi
 
-read ~/.judo_config  
 
-bash the-dream.sh 'install'
-
-history -n > /dev/null 2>&1
-
-(
-  echo "this"
-  echo "that"
-) >> ~/.judo_config
 
 
 
 # Can be run
-
+(
+  echo "this"
+  echo "that is something cool\nthis is uncessary"
+) > ~/testing
+(
+  grep that
+) < ~/testing
 if cat ~/.judo_config | grep "run";
 then
   echo this

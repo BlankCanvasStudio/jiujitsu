@@ -241,13 +241,42 @@ class InterpreterBase():
 
 
         elif node.kind == 'compound':
+            # load stdin if there are redirects
+            if hasattr(node, 'redirects'):
+                for part in reversed(node.redirects):
+                    if (part.type == '<'): # ie we are loading in the redirect in some way
+                        def tmp_func(part):
+                            filename = str(NodeVisitor(part.output))
+                            if filename in self.state.fs:
+                                self.state.STDIN(self.state.fs[filename].contents)
+                            else:
+                                filename = input('Redirect node is asking for file <'+filename+'> Please enter a file you wish to upload: ')
+                                file_contents = open(filename).read()
+                                self.state.STDIN(file_contents)
+                        action = ActionEntry(text='Get information from redirects', func=tmp_func, args=[part])
+                        self.action_stack += [ action ]
+                        break
+
             for part in node.list:
                 """ Action Queue Section """
                 # Compound nodes don't need to be added to stack cause basically just wrapper ?
-                action = ActionEntry(func=self.transferFunc, text='compound node entry')
-                self.action_stack += [ action ]
+                # action = ActionEntry(func=self.transferFunc, text='compound node entry')
+                # self.action_stack += [ action ]
                 vstr2 = NodeVisitor(part)
                 self.interpreter(part, vstr2)
+            
+            # Save output if there are any redirects
+            if hasattr(node, 'redirects'):
+                for part in reversed(node.redirects):
+                    # ALSO NEED CASES FOR 1> AND 2> ALSO >&
+                    if (part.type == '>'): # ie we are loading in the redirect in some way
+                        def tmp_func(part):
+                            filename = str(NodeVisitor(part.output))
+                            output = self.state.STDOUT()
+                            self.state.update_file_system(filename, output)
+                        action = ActionEntry(text='Move information out to redirects', func=tmp_func, args=[part])
+                        self.action_stack += [ action ]
+                        break
 
 
         elif node.kind == 'list':

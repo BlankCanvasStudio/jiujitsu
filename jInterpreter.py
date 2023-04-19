@@ -1,5 +1,5 @@
 #!/bin/python3
-import cmd, subprocess, os, stat, copy, json, re, inspect, pathlib
+import cmd, subprocess, os, sys, stat, copy, json, re, inspect, pathlib
 import bashparser
 try:
     from rich import print
@@ -27,10 +27,15 @@ class Interpreter(cmd.Cmd):
         self.history_stack = [ Record(env=self.env, name='init') ]
         self.alias_table = {}
         self.maintain_history = maintain_history
-        self.import_config(config_file)
+        # self.import_config(config_file)
         self.prompt = '\n>> '
         self.intro = 'Welcome to the Judo Shell!'
 
+    def preloop(self):
+        old_stdout = sys.stdout # backup current stdout
+        sys.stdout = open(os.devnull, "w")
+        self.import_config(self.config_file)
+        sys.stdout = old_stdout
 
     def default(self, line):
         cmd, arg, line = self.parseline(line)
@@ -82,7 +87,7 @@ class Interpreter(cmd.Cmd):
         path = pathlib.Path(filename).expanduser()
         if path.is_file():
             try:
-                self.prog_nodes = bashparser.parse(open(filename).read())
+                self.prog_nodes = bashparser.parse(open(path).read())
                 print('=> ' + str(bashparser.NodeVisitor(self.prog_nodes[0])))
                 self.index = 0
             except Exception as e:
@@ -268,8 +273,8 @@ class Interpreter(cmd.Cmd):
                 for node in nodes:
                     print(node.dump())
             except:
-                print("bashlex could not build AST of code:")
-                print(self.prog_nodes[self.index])
+                print("bashlex could not build AST of code")
+                # print(self.prog_nodes[self.index])
 
 
     def do_shell(self, text):
