@@ -28,7 +28,7 @@ class ActionEntry():
 
 class State:
     def __init__(self, STDIO = None, working_dir = None, variables = None, 
-                    fs = None, open_sockets = None, truths = None):
+                    fs = None, open_sockets = None, truths = None, functions = None):
         """ Irritating but necessary cause mutable arguemnts  """
         if STDIO is None: STDIO = FileSocket(id_num = 0)
         if working_dir is None: working_dir = '~'
@@ -36,6 +36,7 @@ class State:
         if fs is None: fs = {}
         if open_sockets is None: open_sockets = []
         if truths is None: truths = {}
+        if functions is None: functions = {}
 
         """ Type checking stuff for json importing reasons """
         if type(STDIO) is dict: STDIO = FileSocket(**STDIO)
@@ -54,12 +55,14 @@ class State:
         self.fs = fs
         self.open_sockets = open_sockets
         self.truths = truths 
+        self.functions = functions
 
         """ Used when implementing subshells """
         self.starting_working_dir = working_dir
         self.STDIOS_above = []
         self.working_dirs_above = []
         self.variables_above = []
+        self.functions_above = []
 
 
     def __eq__(self, other):
@@ -79,15 +82,24 @@ class State:
 
     def enter_subshell(self):
         # Save the info
-        self.STDIOS_above += [ copy.deepcopy(self.STDIO) ]
-        self.working_dirs_above += [ copy.deepcopy(self.working_dir) ]
-        self.variables_above += [ copy.deepcopy(self.variables) ]
+        self.lower_scope()
         # Create new info
         self.STDIO = FileSocket(id_num = 0)
         self.working_dir = self.starting_working_dir
         self.variables = {}
+        self.functions = {}
 
     def exit_subshell(self):
+        self.raise_scope()
+    
+    def lower_scope(self):
+        # Save the info
+        self.STDIOS_above += [ copy.deepcopy(self.STDIO) ]
+        self.working_dirs_above += [ copy.deepcopy(self.working_dir) ]
+        self.variables_above += [ copy.deepcopy(self.variables) ]
+        self.functions_above += [ copy.deepcopy(self.functions) ]
+    
+    def raise_scope(self):
         if len(self.STDIOS_above):
             self.STDIO = self.STDIOS_above[-1]
             self.STDIOS_above = self.STDIOS_above[:-1]
@@ -97,6 +109,9 @@ class State:
         if len(self.variables_above):
             self.variables = self.variables_above[-1]
             self.variables_above = self.variables_above[:-1]
+        if len(self.functions_above):
+            self.functions = self.functions_above[-1]
+            self.functions_above = self.functions_above[:-1]
 
 
     def text(self, showFiles = False):
@@ -105,6 +120,7 @@ class State:
         output += 'Number of open sockets: ' + str(len(self.open_sockets)) + '\n'
         output += 'Standard IN: ' + repr(self.STDIO.IN) + '\n'
         output += 'Standard OUT: ' + repr(self.STDIO.OUT) + '\n'
+        output += self.functionsText() + '\n'
         output += self.fileSystemText(showFiles=showFiles)
         return output
 
@@ -116,6 +132,7 @@ class State:
         print('Number of open sockets: ', len(self.open_sockets), '\n')
         print('Standard IN: ', repr(self.STDIO.IN), '\n')
         print('Standard OUT: ', repr(self.STDIO.OUT), '\n')
+        self.showFunctions()
         self.showFileSystem(showFiles=showFiles)
 
 
@@ -184,9 +201,24 @@ class State:
                 # opting not to print variables with no values. LMK in an issue if that's wrong
                 pass
         if not len(self.variables):
-            output += "No variables in list\n"
+            output += "  No variables in list\n"
         return output
 
+    def functionsText(self):
+        output = 'Functions: \n'
+        for name, node in self.functions.items():
+            output += '  ' + name + ':\n'
+            node_text = '     ' + str(bashparser.NodeVisitor(node))
+            node_text = node_text.replace('\n', '\n    ')  # auto indent properly
+            output += node_text
+            #for node in nodes:
+            #    output += '    ' + str(NodeVisitor(node)) + '\n'
+        if not len(self.functions):
+            output += '  No functions in list\n'
+        return output
+
+    def showFunctions(self):
+        print(self.functionsText)
 
     def showFileSystem(self, showFiles = False):
         print(self.fileSystemText(showFiles=showFiles) + '\n')
@@ -201,7 +233,7 @@ class State:
         if not len(self.fs):
             output += "No Files in the file system" + '\n'
         return output
-    
+
     def STDIN(self, IN=None):
         if IN is not None: 
             if type(IN) is bytes:
@@ -209,7 +241,7 @@ class State:
             else:    
                 self.STDIO.IN = str(IN)
         return self.STDIO.IN
-    
+
     def STDOUT(self, OUT=None):
         if OUT is not None: 
             if type(OUT) is bytes:
@@ -217,7 +249,6 @@ class State:
             else:    
                 self.STDIO.OUT = str(OUT)
         return self.STDIO.OUT
-    
 
     def copy_file(self, from_file, to_file):
         if from_file not in self.fs: self.fs[from_file] = File(name=from_file, contents='')
@@ -226,3 +257,11 @@ class State:
     def remove_file(self, filename):
         if filename in self.fs:
             del self.fs[filename]
+
+    def build_functions(self, nodes):
+        self.functions = bashparser.build_fn_table(nodes, self.functions)
+
+    def resolve_functions(self, node):
+        return bashparser.resolve_functions(node, self.functions, self.variables)[0]
+
+

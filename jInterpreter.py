@@ -85,8 +85,9 @@ class Interpreter(cmd.Cmd):
                 self.prog_nodes = bashparser.parse(open(filename).read())
                 print('=> ' + str(bashparser.NodeVisitor(self.prog_nodes[0])))
                 self.index = 0
-            except:
-                print('bashlex failed to build ast for file. No state has been changed')
+            except Exception as e:
+                print('bashparse failed to load file for the following reason: ')
+                print(e)
         else:
             print('Cannot load file', filename, 'file not found')
 

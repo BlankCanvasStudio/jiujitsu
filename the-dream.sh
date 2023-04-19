@@ -1,5 +1,15 @@
 #!/bin/bash
-rand=$(seq 0 255 | sort -R | head -n1)
+
+while read x; do
+  echo $x
+done < ~/.judo_config;
+a=b
+unset a
+
+USERZ=$(
+  echo "root"
+  cat ~/.judo_config | grep "run"
+)
 
 if [ $(ping www.google.com >/dev/null|grep "bytes of data" | wc -l ) -gt '0' ];
 then
@@ -7,38 +17,22 @@ then
 else
   echo that
 fi
-
 if cat ~/.judo_config | grep "run"
 then
   echo this
 fi
 
-USERZ=$(
-  echo "root"
-  cat ~/.judo_config | grep "run"
-)
-
-while read x; do
-  echo $x
-done < ~/.judo_config;
-
-a=b
-unset a
 
 if [ "$release" = "CentOS" ]; then
   echo $release
 fi
 
 read ~/.judo_config  
-filesize_config=`cat ~/.judo_config | grep run`
 
-echo ${#WALLET_BASE}
-echo ${WALLET_BASE}
 
-PrintStuff(){
-  echo this
-}
-PrintStuff
+
+
+
 
 bash the-dream.sh 'install'
 
@@ -63,6 +57,20 @@ if ps aux | grep -i '[a]liyun'; then
   apt-get remove this-package
 fi
 
+
+# Can be run
+
+PrintStuff(){
+  echo this $1
+  echo that
+  more stuff
+}
+PrintStuff wordsIn
+
+filesize_config=`cat ~/.judo_config | grep run`
+echo ${#WALLET_BASE}
+echo ${WALLET_BASE}
+rand=$(seq 0 255 | sort -R | head -n1)
 mv /usr/bin/something /usr/bin/else
 wget http://www.google.com
 a==b; c=d; c="something else";b=something; else=notelse

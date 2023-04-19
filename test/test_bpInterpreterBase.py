@@ -325,4 +325,23 @@ class TestBpInterpreterBase(TestCase):
         self.assertTrue(expected_state == intr.state)
 
 
-        
+    def test_functions(self):
+        code = "PrintStuff(){\n \
+                    echo this $1\n \
+                }\n \
+                PrintStuff wordsIn"
+
+        nodes = bashparser.parse(code)
+
+        intr = Full_Interpreter()
+        intr.run(nodes[0])
+        intr.build(nodes[1])
+        intr.inch() # init state for command
+        intr.inch() # actual function node
+        # Now the function should be replaced
+        self.assertTrue(str(intr.action_stack[0] == 'Enter the function scope'))
+        self.assertTrue(str(intr.action_stack[0] == 'Command node: echo'))
+        self.assertTrue(str(intr.action_stack[0] == 'Exit the function scope'))
+        intr.inch()
+        intr.inch()
+        self.assertTrue(intr.stdout() == 'this wordsIn')

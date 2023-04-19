@@ -384,8 +384,12 @@ class InterpreterBase():
             else:
                 raise ValueError("Invalid Resevered Word Node type in bashparser interpreter: " + node.kind + '\n' + node.dump())
 
+        elif node.kind == 'function': 
+            self.state.build_functions(node)
+
         else:
             raise ValueError("Invalid Node type in bashparser interpreter: " + node.kind + '\n' + node.dump())
+
 
         return bashparser.DONT_DESCEND       # I feel like this is a bad way to use bashparser but too much thinking
 
@@ -427,14 +431,33 @@ class InterpreterBase():
                 self.resolve_command_substitution(part)
             def temp_func(command, args, node):
                 command = node.parts[0]
-                if command.word in self.bin:
+                # Add section to do function resoution here
+                if command.word in self.state.functions:
+                    # Let the user know whats happening
+                    resolved_node = self.state.resolve_functions(copy.deepcopy(node))
+                    
+                    old_action_stack = copy.deepcopy(self.action_stack)
+                    self.action_stack = []
+
+                    # Enter the function scope
+                    action = ActionEntry(func=self.state.lower_scope, text='Enter the function scope')
+                    self.action_stack = [ action ] + self.action_stack
+                    
+                    # Build new action stack for the body of the function
+                    self.interpreter(resolved_node, self)
+
+                    # Leave the function scope
+                    action = ActionEntry(func=self.state.raise_scope, text='Exit the function scope')
+                    self.action_stack = self.action_stack + [ action ]
+
+                    self.action_stack += old_action_stack
+                    
+
+                elif command.word in self.bin:
                     """ Very cheeky dynamic programming. Hopefully it doesn't kill performance too much """
                     func = getattr(self, 'f_'+command.word)
-                    # def temp_func(command, args, node):
                     node = self.replace(node)[0]
                     func(node)
-                    # action = ActionEntry(func=temp_func, text='Command node: ' + command.word, args=[command, args, node], code=str(bashparser.NodeVisitor(node)))
-                    # self.action_stack += [ action ]
 
                 else: 
                     # def temp_func():
@@ -446,10 +469,6 @@ class InterpreterBase():
                             raise ValueError("Command " + command.word + " not implemented")
                         elif resp == 'y':
                             pass
-
-                    # action = ActionEntry(func=temp_func, text='Unknown command: ' + command.word + '. Possibly Passing', code=str(bashparser.NodeVisitor(node)))
-
-                    # self.action_stack += [ action ]
 
             action = ActionEntry(func=temp_func, text='Command node: ' + command.word, args=[command, args, node], code=str(bashparser.NodeVisitor(node)))
             self.action_stack += [ action ]
