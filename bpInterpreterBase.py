@@ -1,7 +1,7 @@
 from bpFileSystem import FileSocket
 from bpPrimitives import ActionEntry, State
 from bashparser import NodeVisitor
-import copy, bashparser
+import copy, bashparser, subprocess
 
 
 class InterpreterError(Exception):
@@ -136,6 +136,22 @@ class InterpreterBase():
         return output
 
 
+    def shell(self, text, forward_stdio = True):
+        repl_nodes = self.replace(bashparser.parse(text))
+
+        for node in repl_nodes:
+            repl_text = str(bashparser.NodeVisitor(node))
+            if forward_stdio:
+                repl_text = 'echo "' + self.stdin() + '" | ' + repl_text
+
+            """ Execute the code """
+            result = subprocess.run(repl_text, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
+            """ Put results in the STDIO """
+            output = result.stdout
+            if len(str(result.stderr)): output += result.stderr
+            self.state.STDOUT(output)
+
     def set_variable(self, name, value):
         if type(name) is not str: raise InterpreterError('Interpreter.set_variable(name != str)')
         if type(value) is not list: value = [ value ]
@@ -162,21 +178,33 @@ class InterpreterBase():
         self.state.set_truth(name, value)
 
 
-    def test_truth(self, name):
+    def get_truth(self, name):
+        return self.state.test_truth(name)
+
+
+    def query_user_for_truth(self, name):
         if type(name) is not str: raise InterpreterError('Interpreter.set_truth(name != str)')
         value = self.state.test_truth(name)
         if value is None:
-            print('Truth '+ name + ' not in truth dictionary. Add it?')
-            resp = ''
+            # Prompt and get the truth of statement
+            print('Truth '+ name + ' not saved in state.')
+            resp = input('Is it true, false, or would you like to execute it in the outside env? (t/f/e) ')
+            while resp != 't' and resp != 'f' and resp != 'e':
+                resp = input('Enter t or f')
+            
+            if resp == 'e': return resp
+            
+            value = resp == 't'
+
+            # Save the value if they'd like
+            print('Would you like to add this evaluation to the state for future use?')
             while resp != 'n' and resp != 'y':
                 resp = input('(y/n) ')
             if resp == 'n':
-                raise InterpreterError('InterpreterBase.test_truth is unknown and user refused to add.')
+                pass
             elif resp == 'y':
-                while resp != 't' and resp != 'f':
-                    resp = input('Enter t or f')
                 self.set_truth(name, resp == 't')
-                value = resp == 't'
+
         return value
 
 
@@ -373,10 +401,12 @@ class InterpreterBase():
                     if boolean_string in self.state.truths:   # Check if user has already input the validity
                         resp = self.state.truths[boolean_string]
                     else:                               # They haven't, so we need to ask
+                        resp = self.query_user_for_truth(boolean_string)
+                        """
                         resp = ''
                         while resp != 't' and resp != 'f' and resp != 'e':
                             resp = input('Encountered Boolean condition ' + boolean_string + ' is it true, false or would you like to execute it? (t/f/e) ')
-                        
+                        """
                         if resp != 'e':
                             self.state.truths[boolean_string] = resp
                             return
@@ -451,6 +481,7 @@ class InterpreterBase():
 
 
     def resolve_command_substitution(self, node):
+        if not hasattr(node, 'parts'): return 
         for i, part in enumerate(node.parts):
             if part.kind == 'commandsubstitution':
                 
@@ -519,12 +550,12 @@ class InterpreterBase():
                     # def temp_func():
                     if len(command.word.strip()) or len(args):
                         resp = ''
-                        while resp != 'n' and resp != 'y':
-                            resp = input('Unknown command ' + command.word + ' encouncered. Skip? (y/n) ')
-                        if resp == 'n':
-                            raise ValueError("Command " + command.word + " not implemented")
-                        elif resp == 'y':
+                        while resp != 's' and resp != 'e':
+                            resp = input('Unknown command ' + command.word + ' encouncered. Skip or execute in outside env? (s/e) ')
+                        if resp == 's':
                             pass
+                        elif resp == 'e':
+                            self.shell(str(NodeVisitor(node)))
 
             action = ActionEntry(func=temp_func, text='Command node: ' + command.word, args=[command, args, node], code=str(bashparser.NodeVisitor(node)))
             self.action_stack += [ action ]

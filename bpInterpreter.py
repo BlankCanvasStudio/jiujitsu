@@ -24,6 +24,7 @@ class Interpreter(InterpreterBase):
         command, args = self.parse_node(node)
         text = ''
         for node in args:
+            if node.kind != 'word': break
             text += node.word + ' '
         text = text[:len(text)-1]
         self.state.STDIO.write(text)
@@ -80,5 +81,20 @@ class Interpreter(InterpreterBase):
         command, args = self.parse_node(node)
         self.state.copy_file(args[0].word, args[1].word)
     
+    def f_unset(self, node):
+        # Unset variables first, the functions, allow for -f flag and -n flag. They are mutually exclusive
+        command, args = self.parse_node(node)
+
+        if args[0].word == '-f':
+            for arg in args[1:]:
+                self.state.unset_functions(arg.word)
+        elif args[0].word == '-n':
+            print('-n flag not implemented')
+        else:
+            for arg in args:
+                if not self.state.unset_varibles(arg.word):
+                    self.state.unset_functions(arg.word)
+        print(node.dump())
+
     def f_(self, node):
         pass

@@ -1,25 +1,14 @@
 #!/bin/bash
-
-echo "this" > dump1.txt > dump2.txt
-if [ $(ping www.google.com >/dev/null|grep "bytes of data" | wc -l ) -gt '0' ];
-then
-  echo this;
-else
-  echo that
-fi
-
 bash the-dream.sh 'install'
-
-a=b
-unset a
-
-history -n > /dev/null 2>&1
-
-read ~/.judo_config  
 
 if ! ( [ -x /usr/local/bin/jj ] || [ -x /usr/bin/jj ] ); then
   echo this
 fi
+
+history -n > /dev/null 2>&1
+echo "this" > dump1.txt > dump2.txt
+
+read ~/.judo_config  
 
 while read x; do
   echo $x
@@ -31,11 +20,15 @@ USERZ=$(
 )
 
 
-
-
-
-
 # Can be run
+a=b
+unset a
+if [ $(ping www.google.com >/dev/null|grep "bytes" | wc -l ) -gt '0' ];
+then
+  echo this;
+else
+  echo that
+fi
 (
   echo "this"
   echo "that is something cool\nthis is uncessary"

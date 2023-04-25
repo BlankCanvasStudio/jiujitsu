@@ -57,6 +57,11 @@ class Interpreter(cmd.Cmd):
         text = text[:-1]    # last space is wrong plz remove
         return text
     
+    def get_next_node(self):
+        # if self.prog_nodes is None or len(self.prog_nodes) == 0: return None
+        if self.index >= len(self.prog_nodes): return None
+        node = self.prog_nodes[self.index]
+        return node
 
     def import_config(self, config_file = "~/.judo_config"):
         maintain_history = self.maintain_history      # So anything run in the config file doesn't generate a bunch of hist unless you specify
@@ -107,13 +112,7 @@ class Interpreter(cmd.Cmd):
         -h save state in the history """
         flags, args = self.parser.parse(text)
 
-        def get_next_node():
-            # if self.prog_nodes is None or len(self.prog_nodes) == 0: return None
-            if self.index >= len(self.prog_nodes): return None
-            node = self.prog_nodes[self.index]
-            return node
-
-        node = get_next_node()                         # Get the next node
+        node = self.get_next_node()                         # Get the next node
         if not node and not len(self.env.action_stack): return print('No nodes left. Please load more')
         if Flag('i') not in flags:
             self.index = self.index + 1
@@ -144,8 +143,8 @@ class Interpreter(cmd.Cmd):
         if Flag('p') in flags:
             return self.state([])
 
-        if get_next_node():
-            print('=>', str(bashparser.NodeVisitor(get_next_node())))
+        if self.get_next_node():
+            print('=>', str(bashparser.NodeVisitor(self.get_next_node())))
 
 
     def do_undo(self, text):
@@ -233,18 +232,23 @@ class Interpreter(cmd.Cmd):
         # Convert args to command
         flags, args = self.parser.parse(text)
         cmd = self.args_to_str(args)
-        if not len(cmd): return
-        
-        # Build the action stack for the node
+        if not len(cmd) and not len(flags): return
+
         try:
-            nodes = bashparser.parse(cmd)
-        except:
-            
+            if Flag('f') in flags:  # f flag means you want to use the file, not the code passed in
+                nodes = [ self.get_next_node() ]
+            else:
+                nodes = bashparser.parse(cmd)
+        except:    
             print("bashlex could not build AST of code:")
             print(cmd)
         try:
             for node in nodes:
                 self.env.build(node, append= Flag('a') in flags)
+            if len(self.env.action_stack):
+                print('=>', self.env.action_stack[0])
+            else:
+                print('=> Action stack empty')
         except:
             print('The interpreter cannot build the given command. Please report this bug')
         
@@ -284,9 +288,11 @@ class Interpreter(cmd.Cmd):
         flags, args = self.parser.parse(text)
         text = self.args_to_str(args)
         
+        self.env.shell(text, Flag('n') in flags)
+        """
         repl_nodes = self.env.replace(bashparser.parse(text))
         
-        """ Convert the replaced nodes to text """
+        # Convert the replaced nodes to text
         
         for node in repl_nodes:
             
@@ -294,14 +300,14 @@ class Interpreter(cmd.Cmd):
             if Flag('n') not in flags:
                 repl_text = 'echo "' + self.env.stdin() + '" | ' + repl_text
 
-            """ Execute the code """
+            # Execute the code
             result = subprocess.run(repl_text, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
-        """ Put results in the STDIO """
+        # Put results in the STDIO
         output = result.stdout
         if len(str(result.stderr)): output += result.stderr
         self.env.state.STDOUT(output)
-
+        """
 
     def do_dir(self, text):
         """ Deals with the printing and modificaiton of the interpreters working directory """

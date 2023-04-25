@@ -223,6 +223,31 @@ class State:
     def showFileSystem(self, showFiles = False):
         print(self.fileSystemText(showFiles=showFiles) + '\n')
 
+    def unset_functions(self, name):
+        unset = False
+        for scope in self.functions_above:
+            if name in scope:
+                unset = True
+                del self.functions_above[name]
+
+        if name in self.functions:
+            unset = True
+            del self.functions[name]
+        return unset
+
+    def unset_varibles(self, name):
+        unset = False
+        for scope in self.variables_above:
+            if name in scope:
+                unset = True
+                del self.variables_above[name]
+
+        if name in self.variables:
+            unset = True
+            del self.variables[name]
+
+        return unset
+
 
     def fileSystemText(self, showFiles = False):
         output = 'File System: \n'
