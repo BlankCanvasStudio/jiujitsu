@@ -1,6 +1,4 @@
 #!/bin/bash
-bash the-dream.sh 'install'
-
 if ! ( [ -x /usr/local/bin/jj ] || [ -x /usr/bin/jj ] ); then
   echo this
 fi
@@ -21,6 +19,7 @@ USERZ=$(
 
 
 # Can be run
+bash the-dream.sh 'install'
 a=b
 unset a
 if [ $(ping www.google.com >/dev/null|grep "bytes" | wc -l ) -gt '0' ];
