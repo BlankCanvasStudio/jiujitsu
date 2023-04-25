@@ -2,6 +2,7 @@
 from bpFileSystem import FileSocket, File
 from bpInterpreterBase import InterpreterBase
 import validators
+import bashparser
 
 
 class Interpreter(InterpreterBase):
@@ -95,6 +96,13 @@ class Interpreter(InterpreterBase):
                 if not self.state.unset_varibles(arg.word):
                     self.state.unset_functions(arg.word)
         print(node.dump())
+
+    def f_bash(self, node):
+        command, args = self.parse_node(node)
+        sub_cmd = ' '.join([ str(bashparser.NodeVisitor(x)) for x in args ])
+        sub_node = bashparser.parse(sub_cmd)[0]
+        self.state.enter_subshell()
+        self.run(sub_node)
 
     def f_(self, node):
         pass

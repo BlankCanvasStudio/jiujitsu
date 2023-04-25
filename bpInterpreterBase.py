@@ -94,6 +94,9 @@ class InterpreterBase():
         output += 'Action Queue Size: ' + str(len(self.action_stack))
         return output
 
+    def enter_subshell(self):
+        self.state.enter_subshell()
+
 
     def update_file_system(self, name,  contents, permissions='rw-rw-rw-', location = None):
         if type(name) is not str: raise InterpreterError('Interpreter.update_file_system(name != str)')
