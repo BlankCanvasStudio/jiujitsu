@@ -63,7 +63,10 @@ class State:
         self.working_dirs_above = []
         self.variables_above = []
         self.functions_above = []
+        self.screens_above = []
 
+        """ Used to keep a rolling list of STDOUT like the terminal would """
+        self.screen = ""
 
     def __eq__(self, other):
         if self.STDIO != other.STDIO: return False
@@ -94,10 +97,21 @@ class State:
     
     def lower_scope(self):
         # Save the info
-        self.STDIOS_above += [ copy.deepcopy(self.STDIO) ]
-        self.working_dirs_above += [ copy.deepcopy(self.working_dir) ]
-        self.variables_above += [ copy.deepcopy(self.variables) ]
-        self.functions_above += [ copy.deepcopy(self.functions) ]
+        # self.STDIOS_above += [ copy.deepcopy(self.STDIO) ]
+        # self.working_dirs_above += [ copy.deepcopy(self.working_dir) ]
+        # self.variables_above += [ copy.deepcopy(self.variables) ]
+        # self.functions_above += [ copy.deepcopy(self.functions) ]
+        self.screens_above += [ self.screen ]
+        self.STDIOS_above += [ self.STDIO ]
+        self.working_dirs_above += [ self.working_dir ]
+        self.variables_above += [ self.variables ]
+        self.functions_above += [ self.functions ]
+
+        self.STDIO = copy.deepcopy(self.STDIO)
+        self.working_dir = copy.deepcopy(self.working_dir)
+        self.variables = copy.deepcopy(self.variables)
+        self.functions = copy.deepcopy(self.functions)
+        self.screen = ""
     
     def raise_scope(self):
         if len(self.STDIOS_above):
@@ -112,6 +126,9 @@ class State:
         if len(self.functions_above):
             self.functions = self.functions_above[-1]
             self.functions_above = self.functions_above[:-1]
+        if len(self.screens_above):
+            self.screen = self.screens_above[-1]
+            self.screens_above = self.screens_above[:-1]
 
 
     def text(self, showFiles = False):
@@ -161,10 +178,16 @@ class State:
         if type(value) is not list: value = [ value ]
         self.variables[name] = value
 
-
+    
     def update_variable_list(self, node):
         self.variables = bashparser.update_variable_list(node, self.variables)
 
+    def shift_variables(self):
+        i=1
+        while str(i + 1) in self.variables:
+            self.variables[str(i)] = self.variables[str(i + 1)]
+            i += 1
+        del self.variables[str(i)]
 
     def set_truth(self, name, value):
         if type(name) is not str: name = str(name)
@@ -274,6 +297,17 @@ class State:
             else:    
                 self.STDIO.OUT = str(OUT)
         return self.STDIO.OUT
+    
+    def print_to_screen(self):
+        if self.STDOUT() != '':
+            self.screen += self.STDOUT() + '\n'
+            self.STDOUT('')
+
+    def clear_screen(self):
+        self.screen = ""
+
+    def get_screen(self):
+        return self.screen
 
     def copy_file(self, from_file, to_file):
         if from_file not in self.fs: self.fs[from_file] = File(name=from_file, contents='')
@@ -287,6 +321,6 @@ class State:
         self.functions = bashparser.build_fn_table(nodes, self.functions)
 
     def resolve_functions(self, node):
-        return bashparser.resolve_functions(node, self.functions, self.variables)[0]
+        return bashparser.resolve_functions(node, self.functions, self.variables, replace_arguments=False)[0]
 
 

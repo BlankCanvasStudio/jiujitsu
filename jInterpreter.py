@@ -71,7 +71,7 @@ class Interpreter(cmd.Cmd):
             with open(path) as config_file:
                 for new_line in config_file:
                     self.onecmd(new_line)
-        self.maintain_history = maintain_history
+        self.maintain_history = maintain_history 
 
 
     def save_state(self, name = None, action = None):
@@ -289,26 +289,7 @@ class Interpreter(cmd.Cmd):
         text = self.args_to_str(args)
         
         self.env.shell(text, Flag('n') in flags)
-        """
-        repl_nodes = self.env.replace(bashparser.parse(text))
         
-        # Convert the replaced nodes to text
-        
-        for node in repl_nodes:
-            
-            repl_text = str(bashparser.NodeVisitor(node))
-            if Flag('n') not in flags:
-                repl_text = 'echo "' + self.env.stdin() + '" | ' + repl_text
-
-            # Execute the code
-            result = subprocess.run(repl_text, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-
-        # Put results in the STDIO
-        output = result.stdout
-        if len(str(result.stderr)): output += result.stderr
-        self.env.state.STDOUT(output)
-        """
-
     def do_dir(self, text):
         """ Deals with the printing and modificaiton of the interpreters working directory """
         flags, args = self.parser.parse(text)   # Do it this way cause escaping
@@ -571,7 +552,16 @@ class Interpreter(cmd.Cmd):
         """ Resets the enironment to the original state """
         self.__init__(maintain_history = self.maintain_history, config_file = self.config_file)
 
-
+    def do_screen(self, text):
+        """ Allows users to interact with a virtual 'screen' which logs the culumative outputs of all the functions called.
+            Pass the -p flag or no flags to print the screen. 
+            Pass the -c flag to clear the screen """
+        flags, args = self.parser.parse(text)
+        
+        if Flag('p') in flags or len(flags) == 0:
+            print(self.env.get_screen())
+        if Flag('c') in flags:
+            self.env.clear_screen()
 
 if __name__ == '__main__':
     Interpreter().cmdloop()

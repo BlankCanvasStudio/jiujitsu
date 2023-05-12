@@ -35,7 +35,7 @@ class Interpreter(InterpreterBase):
         if len(args) != 1: 
             print('bash: cd: too many arguments')
         else: 
-            self.working_dir = args[0].word
+            self.state.working_dir = args[0].word
 
     def f_wget(self, node):
         command, args = self.parse_node(node)
@@ -95,7 +95,9 @@ class Interpreter(InterpreterBase):
             for arg in args:
                 if not self.state.unset_varibles(arg.word):
                     self.state.unset_functions(arg.word)
-        print(node.dump())
+    
+    def f_shift(self, node):
+        self.state.shift_variables()
 
     def f_bash(self, node):
         command, args = self.parse_node(node)
@@ -106,3 +108,4 @@ class Interpreter(InterpreterBase):
 
     def f_(self, node):
         pass
+

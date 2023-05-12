@@ -58,7 +58,8 @@ class InterpreterBase():
 
     """ Used in Action Queues """
     def transferFunc(self):
-        self.stdout('')
+        # self.stdout('')
+        self.state.print_to_screen()
     
     def emptyFunc(self):
         pass
@@ -75,6 +76,14 @@ class InterpreterBase():
         args = node.parts[1:]
         return cmd, args
 
+
+    """ Used to manage the screen aspect of the state """
+    def get_screen(self):
+        return self.state.get_screen()
+
+    def clear_screen(self):
+        self.state.clear_screen()
+        
 
     """ Set the working directory """
     def working_dir(self, working_dir = None):
@@ -114,6 +123,7 @@ class InterpreterBase():
 
 
     def initialize_state_for_new_command(self):
+        # self.state.print_screen()
         self.state.STDOUT('')
         self.state.STDIN('')
 
@@ -170,6 +180,8 @@ class InterpreterBase():
     def text_variables(self):
         return self.state.variablesText()
 
+    def shift_variables(self):
+        self.state.shift_variables()
 
     def set_truth(self, name, value):
         if type(name) is not str: raise InterpreterError('Interpreter.set_truth(name != str)')
@@ -229,7 +241,6 @@ class InterpreterBase():
         if OUT and type(OUT) is not str: raise InterpreterError('Error Interpreter.stdout(OUT != str)')
         if OUT is not None: self.state.STDOUT(OUT)
         return self.state.STDOUT()
-
 
     """ The following section is everything necessary to actually run the interpreter """
 
@@ -303,7 +314,7 @@ class InterpreterBase():
                     if (part.type == '>'): # ie we are loading in the redirect in some way
                         def tmp_func(part):
                             filename = str(NodeVisitor(part.output))
-                            output = self.state.STDOUT()
+                            output = self.state.get_screen() + self.state.STDOUT()
                             self.state.update_file_system(filename, output)
                         action = ActionEntry(text='Move information out to redirects', func=tmp_func, args=[part])
                         self.action_stack += [ action ]
@@ -374,9 +385,16 @@ class InterpreterBase():
                     # This should automatically append stuff to the action_stack so nothing really needs to be done?
                     vstr2 = NodeVisitor(cmd)
                     vstr2.apply(self.interpreter, vstr2)
+                
+                def itr_for_loop():
+                    self.state.print_to_screen()
+
+                action = ActionEntry(func=itr_for_loop, text='iterate for loop')
+                self.action_stack += [ action ]
 
             # Remove the iterator after the for loop exits
             self.state.variables.pop(var_name)
+
             action = ActionEntry(func=self.transferFunc, text='Exit for loop')
             self.action_stack += [ action ]
 
@@ -403,13 +421,9 @@ class InterpreterBase():
                     # Determine truthiness
                     if boolean_string in self.state.truths:   # Check if user has already input the validity
                         resp = self.state.truths[boolean_string]
-                    else:                               # They haven't, so we need to ask
+                    else:                               # They haven't, so we need to asklini
                         resp = self.query_user_for_truth(boolean_string)
-                        """
-                        resp = ''
-                        while resp != 't' and resp != 'f' and resp != 'e':
-                            resp = input('Encountered Boolean condition ' + boolean_string + ' is it true, false or would you like to execute it? (t/f/e) ')
-                        """
+                        
                         if resp != 'e':
                             self.state.truths[boolean_string] = resp
                             return
@@ -422,11 +436,12 @@ class InterpreterBase():
                         if boolean_string[-1] == ';': 
                             boolean_string_trimmed = boolean_string[:-1]
                         self.interpreter(bashparser.parse(boolean_string_trimmed)[0], self)
-                        
+ 
 
                         def check_if_boolean_passed(boolean_string):
                             if self.state.STDOUT() == '': self.state.truths[boolean_string] = 'f'
                             else : self.state.truths[boolean_string] = 't'
+                            self.state.STDOUT('')
 
                         self.action_stack += [ ActionEntry(func=check_if_boolean_passed, args=[boolean_string], text='Determine if boolean execution is true') ]
                         self.action_stack += old_action_stack
@@ -441,14 +456,17 @@ class InterpreterBase():
                         # Save the current action stack, generate a new body, append the action stack to it
                         # This way we can inject commands into the action stack during run time. It sucks but necessary
                         old_action_stack = copy.deepcopy(self.action_stack)
-                        enter_loop = ActionEntry(text = 'Enter For Loop', func=self.transferFunc)
+                        enter_loop = ActionEntry(text = 'Enter If Statement', func=self.transferFunc)
                         add_to_action_stack = [ enter_loop ]
                         for node in body:
                             self.action_stack = []
                             vstr2 = NodeVisitor(node)
                             self.interpreter(node, vstr2)
                             add_to_action_stack += self.action_stack
-                        exit_loop = ActionEntry(text='Exit For Loop', func=self.emptyFunc)
+                        
+                        def exit_if_statement():
+                            self.state.print_to_screen()
+                        exit_loop = ActionEntry(text='Exit If Statement', func=exit_if_statement)
                         add_to_action_stack += [ exit_loop ]
                         self.action_stack = add_to_action_stack + old_action_stack
                 
@@ -488,9 +506,9 @@ class InterpreterBase():
         for i, part in enumerate(node.parts):
             if part.kind == 'commandsubstitution':
                 
-                def build_cmd_sub(node, part):
+                def build_cmd_sub(state, node, part):
                     # Enter the subshell
-                    self.state.enter_subshell()
+                    state.lower_scope()
 
                     # Build the new commands 
                     commandsub = part.command
@@ -498,20 +516,21 @@ class InterpreterBase():
                     self.action_stack = []
                     self.interpreter(commandsub, self)
                     self.action_stack += old_action_stack
-                
-                def replace_cmd_sub_results(node, part):
-                    results = self.stdout()
+ 
+                def replace_cmd_sub_results(state, node, part):
+                    screen_string = ' '.join(state.get_screen().split('\n'))
+                    results = screen_string + ' ' + self.stdout() if len(screen_string) else self.stdout()
                     self.stdout('')
 
                     # Adjust the tree with the replaced results
                     node.word = node.word[:(part.pos[0] - node.pos[0])] + results + node.word[(part.pos[0] - node.pos[0]) + part.pos[1]:]
 
                     # Exit the subshell env
-                    self.state.exit_subshell()
+                    state.raise_scope()
 
-                action = ActionEntry(func=build_cmd_sub, args=[node,part], text='Enter Command Substitution Env: ' + str(bashparser.NodeVisitor(node)), code=str(bashparser.NodeVisitor(node)))
+                action = ActionEntry(func=build_cmd_sub, args=[self.state, node,part], text='Enter Command Substitution Env: ' + str(bashparser.NodeVisitor(node)), code=str(bashparser.NodeVisitor(node)))
                 self.action_stack += [ action ]
-                action = ActionEntry(func=replace_cmd_sub_results, args=[node, part], text='Exiting Command Substitution Env: ' + str(bashparser.NodeVisitor(node)), code=str(bashparser.NodeVisitor(node)))
+                action = ActionEntry(func=replace_cmd_sub_results, args=[self.state, node, part], text='Exiting Command Substitution Env: ' + str(bashparser.NodeVisitor(node)), code=str(bashparser.NodeVisitor(node)))
                 self.action_stack += [ action ]
 
     def run_command(self, command, args, node):
@@ -526,18 +545,34 @@ class InterpreterBase():
                     # Let the user know whats happening
                     resolved_node = self.state.resolve_functions(copy.deepcopy(node))
                     
+                    function_arguments = {}
+                    for argument in args:
+                        function_arguments[str(len(function_arguments) + 1)] = argument.word
+                        # print(argument)
+
                     old_action_stack = copy.deepcopy(self.action_stack)
                     self.action_stack = []
 
                     # Enter the function scope
-                    action = ActionEntry(func=self.state.lower_scope, text='Enter the function scope')
+                    def lower_scope(state, function_args):
+                        state.lower_scope()
+                        for key, value in function_args.items():
+                            state.set_variable(key, value)
+                    
+                    action = ActionEntry(func=lower_scope, args=[self.state, function_arguments], text='Enter the function scope')
                     self.action_stack = [ action ] + self.action_stack
                     
                     # Build new action stack for the body of the function
                     self.interpreter(resolved_node, self)
 
                     # Leave the function scope
-                    action = ActionEntry(func=self.state.raise_scope, text='Exit the function scope')
+                    def exit_function_scope(state):
+                        if state.STDOUT():
+                            state.print_to_screen()
+                        state.raise_scope()
+                    # action = ActionEntry(func=self.state.raise_scope, text='Exit the function scope')
+                    action = ActionEntry(func=exit_function_scope, args=[self.state], text='Exit the function scope')
+
                     self.action_stack = self.action_stack + [ action ]
 
                     self.action_stack += old_action_stack
