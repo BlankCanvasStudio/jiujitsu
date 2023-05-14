@@ -89,8 +89,8 @@ class State:
         # Create new info
         self.STDIO = FileSocket(id_num = 0)
         self.working_dir = self.starting_working_dir
-        self.variables = {}
-        self.functions = {}
+        # self.variables = {}
+        # self.functions = {}
 
     def exit_subshell(self):
         self.raise_scope()
@@ -127,7 +127,7 @@ class State:
             self.functions = self.functions_above[-1]
             self.functions_above = self.functions_above[:-1]
         if len(self.screens_above):
-            self.screen = self.screens_above[-1]
+            self.screen = self.screens_above[-1] + self.screen
             self.screens_above = self.screens_above[:-1]
 
 
@@ -169,9 +169,11 @@ class State:
 
 
     """ Replace all the aliases possible in the state """
-    def replace(self, nodes, replace_blanks = True):
-        return bashparser.substitute_variables(nodes, self.variables, replace_blanks=replace_blanks)
-
+    def replace(self, nodes, replace_blanks = True, full = False):
+        if full:
+            return bashparser.substitute_variables(nodes, self.variables, replace_blanks=replace_blanks)
+        else:
+            return bashparser.replace_variables(nodes, self.variables, replace_blanks=True)
 
     """ Update the variables in the var list """
     def set_variable(self, name, value):

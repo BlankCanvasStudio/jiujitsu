@@ -94,7 +94,7 @@ class Parser():
 
         flags = []
 
-        if self.current_char().isspace():
+        if self.current_char() and self.current_char().isspace():
             self.skip_whitespace()
 
         while self.current_char() and not self.current_char().isspace() and (not self.current_char() == ';'):

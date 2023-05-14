@@ -115,11 +115,11 @@ class InterpreterBase():
         self.state.update_file_system(name, contents, permissions, location)
 
 
-    def replace(self, nodes):
+    def replace(self, nodes, full = False):
         if type(nodes) is not list: nodes = [ nodes ]
         for node in nodes:
             if type(node) is not bashparser.node: raise InterpreterError('Interpreter.replace() takes an array of bashparser nodes as its argument')
-        return self.state.replace(nodes)
+        return self.state.replace(nodes, full=full)
 
 
     def initialize_state_for_new_command(self):
@@ -150,7 +150,7 @@ class InterpreterBase():
 
 
     def shell(self, text, forward_stdio = True):
-        repl_nodes = self.replace(bashparser.parse(text))
+        repl_nodes = self.replace(bashparser.parse(text), full = True)
 
         for node in repl_nodes:
             repl_text = str(bashparser.NodeVisitor(node))
@@ -346,8 +346,6 @@ class InterpreterBase():
                             pass
                         elif part.op == ';' or part.op == '\n':
                             self.execute = True
-                            # self.state.STDIN('')
-                            # self.state.STDOUT('')
                         else:
                             raise ValueError("Op type not implemented in interpreter: ", part.op)
 
@@ -486,8 +484,15 @@ class InterpreterBase():
                 self.action_stack += [ truth_action, build_results ]
         
         elif node.kind == 'reservedword':
-            if node.word == '(' or node.word == ')':
-                pass
+            if node.word == '(':
+                def temp_func():
+                    self.state.lower_scope()
+                self.action_stack += [ ActionEntry(func=temp_func, text="Entering sub-shell env") ]
+            elif node.word == ')':
+                def temp_func():
+                    self.state.raise_scope()
+                self.action_stack += [ ActionEntry(func=temp_func, text="Exiting sub-shell env") ]
+
             else:
                 raise ValueError("Invalid Resevered Word Node type in bashparser interpreter: " + node.kind + '\n' + node.dump())
 
@@ -506,9 +511,9 @@ class InterpreterBase():
         for i, part in enumerate(node.parts):
             if part.kind == 'commandsubstitution':
                 
-                def build_cmd_sub(state, node, part):
+                def build_cmd_sub(node, part):
                     # Enter the subshell
-                    state.lower_scope()
+                    self.state.lower_scope()
 
                     # Build the new commands 
                     commandsub = part.command
@@ -517,20 +522,20 @@ class InterpreterBase():
                     self.interpreter(commandsub, self)
                     self.action_stack += old_action_stack
  
-                def replace_cmd_sub_results(state, node, part):
-                    screen_string = ' '.join(state.get_screen().split('\n'))
+                def replace_cmd_sub_results(node, part):
+                    screen_string = ' '.join(self.state.get_screen().split('\n'))
                     results = screen_string + ' ' + self.stdout() if len(screen_string) else self.stdout()
+                    if self.stdout() == '' and len(screen_string): results = results[:-1] # remove bad trailing space
                     self.stdout('')
-
+                    self.state.screen = "" # empty screen so it doesn't get appended to
                     # Adjust the tree with the replaced results
                     node.word = node.word[:(part.pos[0] - node.pos[0])] + results + node.word[(part.pos[0] - node.pos[0]) + part.pos[1]:]
-
                     # Exit the subshell env
-                    state.raise_scope()
+                    self.state.raise_scope()
 
-                action = ActionEntry(func=build_cmd_sub, args=[self.state, node,part], text='Enter Command Substitution Env: ' + str(bashparser.NodeVisitor(node)), code=str(bashparser.NodeVisitor(node)))
+                action = ActionEntry(func=build_cmd_sub, args=[node,part], text='Enter Command Substitution Env: ' + str(bashparser.NodeVisitor(node)), code=str(bashparser.NodeVisitor(node)))
                 self.action_stack += [ action ]
-                action = ActionEntry(func=replace_cmd_sub_results, args=[self.state, node, part], text='Exiting Command Substitution Env: ' + str(bashparser.NodeVisitor(node)), code=str(bashparser.NodeVisitor(node)))
+                action = ActionEntry(func=replace_cmd_sub_results, args=[node, part], text='Exiting Command Substitution Env: ' + str(bashparser.NodeVisitor(node)), code=str(bashparser.NodeVisitor(node)))
                 self.action_stack += [ action ]
 
     def run_command(self, command, args, node):
@@ -548,35 +553,34 @@ class InterpreterBase():
                     function_arguments = {}
                     for argument in args:
                         function_arguments[str(len(function_arguments) + 1)] = argument.word
-                        # print(argument)
 
                     old_action_stack = copy.deepcopy(self.action_stack)
                     self.action_stack = []
 
                     # Enter the function scope
-                    def lower_scope(state, function_args):
-                        state.lower_scope()
+                    def lower_scope(function_args):
+                        self.state.lower_scope()
                         for key, value in function_args.items():
-                            state.set_variable(key, value)
+                            self.state.set_variable(key, value)
                     
-                    action = ActionEntry(func=lower_scope, args=[self.state, function_arguments], text='Enter the function scope')
+                    action = ActionEntry(func=lower_scope, args=[function_arguments], text='Enter the function scope')
                     self.action_stack = [ action ] + self.action_stack
                     
                     # Build new action stack for the body of the function
                     self.interpreter(resolved_node, self)
 
                     # Leave the function scope
-                    def exit_function_scope(state):
-                        if state.STDOUT():
-                            state.print_to_screen()
-                        state.raise_scope()
+                    def exit_function_scope():
+                        if self.state.STDOUT():
+                            self.state.print_to_screen()
+                        self.state.raise_scope()
                     # action = ActionEntry(func=self.state.raise_scope, text='Exit the function scope')
-                    action = ActionEntry(func=exit_function_scope, args=[self.state], text='Exit the function scope')
+                    action = ActionEntry(func=exit_function_scope, text='Exit the function scope')
 
                     self.action_stack = self.action_stack + [ action ]
 
                     self.action_stack += old_action_stack
-                    
+
 
                 elif command.word in self.bin:
                     """ Very cheeky dynamic programming. Hopefully it doesn't kill performance too much """
@@ -585,7 +589,6 @@ class InterpreterBase():
                     func(node)
 
                 else: 
-                    # def temp_func():
                     if len(command.word.strip()) or len(args):
                         resp = ''
                         while resp != 's' and resp != 'e':
@@ -614,13 +617,14 @@ class InterpreterBase():
 
             """ No command substitutions left.
                 Replace and update the variable list. """
-            def temp_func():
+            def temp_func(command):
                 replaced = self.state.replace(command, replace_blanks=True)
                 for node in replaced:
                     self.state.update_variable_list(node)
-            action = ActionEntry(func=temp_func, text='Variable Assignment', code=str(bashparser.NodeVisitor(node)))
+            action = ActionEntry(func=temp_func, args=[command], text='Variable Assignment', code=str(bashparser.NodeVisitor(node)))
             self.action_stack += [ action ]
 
         else:
             print('command: ', command)
             raise ValueError('Command type not implemented: ' + str(command.kind))
+

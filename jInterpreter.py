@@ -21,6 +21,7 @@ class Interpreter(cmd.Cmd):
         self.parser = Parser()
         self.prog_nodes = []
         self.index = 0
+        self.index_history = [ 0 ]
         self.config_file = config_file
         self.env = bpInterpreter(STDIO = FileSocket(id_num = 0), working_dir = '~', variables = {}, 
                     fs = {}, open_sockets = [], truths = {})
@@ -81,6 +82,7 @@ class Interpreter(cmd.Cmd):
         new_env = copy.deepcopy(self.env)
         self.history_stack += [ Record(env=new_env, name=name, action=action) ]
         self.env = new_env
+        self.index_history += [ self.index ]
 
 
     def do_load(self, filename):
@@ -153,13 +155,17 @@ class Interpreter(cmd.Cmd):
         flags, args = self.parser.parse(text)
 
         if len(self.history_stack) > 1:                     # Roll back if possible
+            # if self.env == self.history_stack[-1].env:
             self.history_stack = self.history_stack[:-1]
+            self.index_history = self.index_history[:-1]
             self.env = self.history_stack[-1].env
+            # self.index = self.index_history[-1]
             self.index  = self.index - 1
         else:                                               # If not the re-create from the ground up
             self.env = bpInterpreter()
             self.history_stack = [ Record(env=self.env, name='init') ]
             self.index = 0
+            self.index_history = [ 0 ]
             self.import_config(self.config_file)
 
 
