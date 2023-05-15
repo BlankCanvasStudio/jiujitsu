@@ -85,17 +85,29 @@ class Interpreter(cmd.Cmd):
         self.index_history += [ self.index ]
 
 
-    def do_load(self, filename):
+    def do_load(self, text):
         """ Loads a file to be iterated through with either next or inch commands 
-            Takes an argument of a single filename """
+            Takes an argument of a single filename 
+            Add the -a flag to append the nodes to the current list 
+            Add the -b flag to add the nodes to the beginning of the list
+            If neither is specified, the list of program nodes will be reset """
+        flags, args = self.parser.parse(text)
+        filename = self.args_to_str(args)
         if not len(filename):
             print("Please specify a file to load")
             return
         path = pathlib.Path(filename).expanduser()
         if path.is_file():
             try:
-                self.prog_nodes = bashparser.parse(open(path).read())
-                print('=> ' + str(bashparser.NodeVisitor(self.prog_nodes[0])))
+                if Flag('a') in flags:
+                    self.prog_nodes += bashparser.parse(open(path).read())
+                    print('=> ' + str(bashparser.NodeVisitor(self.prog_nodes[0])))
+                elif Flag('a') in flags:
+                    self.prog_nodes = bashparser.parse(open(path).read()) + self.prog_nodes
+                    print('=> ' + str(bashparser.NodeVisitor(self.prog_nodes[0])))
+                else:
+                    self.prog_nodes = bashparser.parse(open(path).read())
+                    print('=> ' + str(bashparser.NodeVisitor(self.prog_nodes[0])))
                 self.index = 0
             except Exception as e:
                 print('bashparse failed to load file for the following reason: ')
@@ -113,40 +125,44 @@ class Interpreter(cmd.Cmd):
         -p print the state of the system afterward
         -h save state in the history """
         flags, args = self.parser.parse(text)
+        itrs = self.args_to_str(args)
+        if not itrs.isdigit():
+            itrs = 1
+        else: itrs = int(itrs)
+        for i in range(0, itrs):
+            node = self.get_next_node()                         # Get the next node
+            if not node and not len(self.env.action_stack): return print('No nodes left. Please load more')
+            if Flag('i') not in flags:
+                self.index = self.index + 1
+            node_str = str(bashparser.NodeVisitor(node))
 
-        node = self.get_next_node()                         # Get the next node
-        if not node and not len(self.env.action_stack): return print('No nodes left. Please load more')
-        if Flag('i') not in flags:
-            self.index = self.index + 1
-        node_str = str(bashparser.NodeVisitor(node))
-
-        """ All -e nodes need to be executed in environment so you can switch between them without issue """
-        
-
-        if not len(self.env.action_stack):
-            if self.maintain_history or Flag('h') in flags:
-                self.save_state(action = node_str)
+            """ All -e nodes need to be executed in environment so you can switch between them without issue """
             
-            if Flag('e') in flags:
-                self.do_shell(node_str)  # Convert to str then execute in real shell
 
-            if Flag('i') in flags:  # i flag means you want to inch it
-                self.env.build(node, append = False)
-                if len(self.env.action_stack):
-                    print('=>', self.env.action_stack[0])
+            if not len(self.env.action_stack):
+                if self.maintain_history or Flag('h') in flags:
+                    self.save_state(action = node_str)
+                
+                if Flag('e') in flags:
+                    self.do_shell(node_str)  # Convert to str then execute in real shell
+
+                if Flag('i') in flags:  # i flag means you want to inch it
+                    self.env.build(node, append = False)
+                    if len(self.env.action_stack):
+                        print('=>', self.env.action_stack[0])
+                    else:
+                        print('=> Action stack empty')
                 else:
-                    print('=> Action stack empty')
+                    self.env.run(node)
+            
             else:
-                self.env.run(node)
-        
-        else:
-            while len(self.env.action_stack): self.do_inch(text)
+                while len(self.env.action_stack): self.do_inch(text)
 
-        if Flag('p') in flags:
-            return self.state([])
+            if Flag('p') in flags:
+                return self.state([])
 
-        if self.get_next_node():
-            print('=>', str(bashparser.NodeVisitor(self.get_next_node())))
+            if self.get_next_node():
+                print('=>', str(bashparser.NodeVisitor(self.get_next_node())))
 
 
     def do_undo(self, text):

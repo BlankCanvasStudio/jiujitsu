@@ -279,7 +279,7 @@ class State:
         for name, file in self.fs.items():
             output += '  ' + name + ' permissions: ' + str(file.permissions) + '\n'
             if showFiles:
-                output += file.contents + '\n'
+                output += file.contents + '\n' if file.contents else '\n'
         if not len(self.fs):
             output += "No Files in the file system" + '\n'
         return output

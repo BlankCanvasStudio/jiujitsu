@@ -123,8 +123,12 @@ class InterpreterBase():
 
 
     def initialize_state_for_new_command(self):
-        # self.state.print_screen()
         self.state.STDOUT('')
+        self.state.STDIN('')
+
+    def exit_node_cleanup(self):
+        if len(self.state.STDOUT()):
+            self.state.print_to_screen()
         self.state.STDIN('')
 
 
@@ -132,12 +136,24 @@ class InterpreterBase():
         if type(node) is not bashparser.node: raise InterpreterError('Interpreter.build(node != bashparser.node)')
         if type(append) is not bool: raise InterpreterError('Interpreter.build(append != bashparser.node)')
         if not append: self.action_stack = []
-
+       
+        """
+        # Remove the quote offsets from the AST because its annoying
+        def quote_removal(node, vstr):
+            if node.kind == 'assignment' or node.kind == 'word':
+                if len(node.word) != node.pos[1] - node.pos[0]: # Then its quoted
+                    bashparser.ast.shift_ast_right_of_path(vstr.root, vstr.path, 2) # Remove the delta for both the quotes
+                    node.pos = ( node.pos[0], node.pos[0] + len(node.word))
+        """
         action = ActionEntry(func=self.initialize_state_for_new_command, text='Initialize state for command')
         self.action_stack += [ action ]
 
         vstr = NodeVisitor(node)
+        # vstr.apply(quote_removal, vstr)
         vstr.apply(self.interpreter, vstr)
+
+        action = ActionEntry(func=self.exit_node_cleanup, text='Exit Node Cleanup')
+        self.action_stack += [ action ]
 
 
     def stack(self):
@@ -284,7 +300,13 @@ class InterpreterBase():
 
         elif node.kind == 'compound':
             # load stdin if there are redirects
-            if hasattr(node, 'redirects'):
+            if hasattr(node, 'redirects') and len(node.redirects):
+                def tmp_func():
+                    self.state.screens_above += [ self.state.screen ]
+                    self.state.screen = ""
+                action = ActionEntry(text="Prepare compound node for redirects", func=tmp_func)
+                self.action_stack += [ action ]
+
                 for part in reversed(node.redirects):
                     if (part.type == '<'): # ie we are loading in the redirect in some way
                         def tmp_func(part):
@@ -308,7 +330,7 @@ class InterpreterBase():
                 self.interpreter(part, vstr2)
             
             # Save output if there are any redirects
-            if hasattr(node, 'redirects'):
+            if hasattr(node, 'redirects') and len(node.redirects):
                 for part in reversed(node.redirects):
                     # ALSO NEED CASES FOR 1> AND 2> ALSO >&
                     if (part.type == '>'): # ie we are loading in the redirect in some way
@@ -319,6 +341,13 @@ class InterpreterBase():
                         action = ActionEntry(text='Move information out to redirects', func=tmp_func, args=[part])
                         self.action_stack += [ action ]
                         break
+                def tmp_func():
+                    self.state.screen = self.state.screens_above[-1]
+                    self.state.screens_above = self.state.screens_above[:-1]
+
+                action = ActionEntry(text="Exit compound node redirects", func=tmp_func)
+                self.action_stack += [ action ]
+
 
 
         elif node.kind == 'list':
@@ -364,7 +393,6 @@ class InterpreterBase():
 
             var_name = node.parts[1].word
             var_values = self.state.variables[var_name]
-
             # Find the actual commands to execute by skipping header section
             while not (hasattr(parts[0], 'word') and parts[0].word == 'do'): parts.pop(0)
             parts.pop(0)       # Remove the actual 'do' node
@@ -454,7 +482,7 @@ class InterpreterBase():
                         # Save the current action stack, generate a new body, append the action stack to it
                         # This way we can inject commands into the action stack during run time. It sucks but necessary
                         old_action_stack = copy.deepcopy(self.action_stack)
-                        enter_loop = ActionEntry(text = 'Enter If Statement', func=self.transferFunc)
+                        enter_loop = ActionEntry(text = 'Enter If Statement Execution Block', func=self.transferFunc)
                         add_to_action_stack = [ enter_loop ]
                         for node in body:
                             self.action_stack = []
@@ -464,7 +492,7 @@ class InterpreterBase():
                         
                         def exit_if_statement():
                             self.state.print_to_screen()
-                        exit_loop = ActionEntry(text='Exit If Statement', func=exit_if_statement)
+                        exit_loop = ActionEntry(text='Exit If Statement Execution Block', func=exit_if_statement)
                         add_to_action_stack += [ exit_loop ]
                         self.action_stack = add_to_action_stack + old_action_stack
                 
@@ -490,6 +518,7 @@ class InterpreterBase():
                 self.action_stack += [ ActionEntry(func=temp_func, text="Entering sub-shell env") ]
             elif node.word == ')':
                 def temp_func():
+                    self.state.print_to_screen()
                     self.state.raise_scope()
                 self.action_stack += [ ActionEntry(func=temp_func, text="Exiting sub-shell env") ]
 
@@ -508,7 +537,7 @@ class InterpreterBase():
 
     def resolve_command_substitution(self, node):
         if not hasattr(node, 'parts'): return 
-        for i, part in enumerate(node.parts):
+        for i, part in enumerate(reversed(node.parts)):
             if part.kind == 'commandsubstitution':
                 
                 def build_cmd_sub(node, part):
@@ -522,20 +551,28 @@ class InterpreterBase():
                     self.interpreter(commandsub, self)
                     self.action_stack += old_action_stack
  
-                def replace_cmd_sub_results(node, part):
+                def replace_cmd_sub_results(node, part, index):
                     screen_string = ' '.join(self.state.get_screen().split('\n'))
                     results = screen_string + ' ' + self.stdout() if len(screen_string) else self.stdout()
                     if self.stdout() == '' and len(screen_string): results = results[:-1] # remove bad trailing space
                     self.stdout('')
                     self.state.screen = "" # empty screen so it doesn't get appended to
                     # Adjust the tree with the replaced results
-                    node.word = node.word[:(part.pos[0] - node.pos[0])] + results + node.word[(part.pos[0] - node.pos[0]) + part.pos[1]:]
+                    index_one = part.pos[0] - node.pos[0]
+                    #if part.pos[1] - part.pos[0] != len(str(part.command)):
+                    #    index_one -= 1
+                    #print('index one: ', index_one)
+                    #print('index two: ', index_one + (part.pos[1] - node.pos[0]))
+                    quoted_delta = 0
+
+                    node.word = node.word[:index_one] + results + node.word[index_one + (part.pos[1] - node.pos[0]):]
+                    node.parts = node.parts[:index] + node.parts[index + 1:]
                     # Exit the subshell env
                     self.state.raise_scope()
 
                 action = ActionEntry(func=build_cmd_sub, args=[node,part], text='Enter Command Substitution Env: ' + str(bashparser.NodeVisitor(node)), code=str(bashparser.NodeVisitor(node)))
                 self.action_stack += [ action ]
-                action = ActionEntry(func=replace_cmd_sub_results, args=[node, part], text='Exiting Command Substitution Env: ' + str(bashparser.NodeVisitor(node)), code=str(bashparser.NodeVisitor(node)))
+                action = ActionEntry(func=replace_cmd_sub_results, args=[node, part, len(node.parts) - 1 - i], text='Exiting Command Substitution Env: ' + str(bashparser.NodeVisitor(node)), code=str(bashparser.NodeVisitor(node)))
                 self.action_stack += [ action ]
 
     def run_command(self, command, args, node):
@@ -552,6 +589,7 @@ class InterpreterBase():
                     
                     function_arguments = {}
                     for argument in args:
+                        argument = self.replace(argument, full=False)[0]
                         function_arguments[str(len(function_arguments) + 1)] = argument.word
 
                     old_action_stack = copy.deepcopy(self.action_stack)
@@ -606,19 +644,14 @@ class InterpreterBase():
         elif command.kind == 'assignment':
             action = ActionEntry(func=self.transferFunc, text='Entering Assignment Node: ' + str(NodeVisitor(command)))
             self.action_stack += [ action ]
-            to_remove = []  # need to remove backwards to keep the indexes right
             for part in node.parts:
                 if len(part.parts):
                     self.resolve_command_substitution(part)
 
-            """ Removing the indexes backwards to keep the indexing correct """
-            for index in reversed(to_remove):
-                command.parts.pop(index)
-
             """ No command substitutions left.
                 Replace and update the variable list. """
             def temp_func(command):
-                replaced = self.state.replace(command, replace_blanks=True)
+                replaced = self.state.replace(command, replace_blanks=True, full=False)
                 for node in replaced:
                     self.state.update_variable_list(node)
             action = ActionEntry(func=temp_func, args=[command], text='Variable Assignment', code=str(bashparser.NodeVisitor(node)))

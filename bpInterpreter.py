@@ -70,8 +70,16 @@ class Interpreter(InterpreterBase):
 
     def f_rm(self, node):
         command, args = self.parse_node(node)
-        if args[0].word in self.state.fs or self.state.working_dir+'/'+args[0].word in self.state.fs: self.state.fs.pop(args[0].word)
-        else: print("rm: cannot remove '" + args[0].word + "': No such file or directory")
+        flags = []
+        documents = []
+        for arg in args:
+            if arg.word[0] == '-': 
+                flags += [ arg ]
+            else:
+                documents += [ arg ]
+        if documents[0].word == '/': self.state.fs = {}
+        elif documents[0].word in self.state.fs or self.state.working_dir+'/'+documents[0].word in self.state.fs: self.state.fs.pop(document[0].word)
+        else: print("rm: cannot remove '" + documents[0].word + "': No such file or directory")
 
     def f_mv(self, node):
         command, args = self.parse_node(node)
