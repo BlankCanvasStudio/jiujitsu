@@ -211,19 +211,25 @@ class Interpreter(cmd.Cmd):
         
         flags, args = self.parser.parse(text)
         
-        if Flag('e') in flags:
-            node_str = self.env.action_stack[0].code
-            self.do_shell(node_str)
-            self.env.action_stack.pop(0)
-            self.env.stdin('')
-
-        else:
-            res = self.env.inch()
+        itrs = self.args_to_str(args)
+        if not itrs.isdigit():
+            itrs = 1
+        else: itrs = int(itrs)
         
-        if len(self.env.action_stack):
-            print(self.env.action_stack[0])
-        else:
-            print('Action stack empty')
+        for i in range(0, itrs):
+            if Flag('e') in flags:
+                node_str = self.env.action_stack[0].code
+                self.do_shell(node_str)
+                self.env.action_stack.pop(0)
+                self.env.stdin('')
+
+            else:
+                res = self.env.inch()
+            
+            if len(self.env.action_stack):
+                print(self.env.action_stack[0])
+            else:
+                print('Action stack empty')
 
 
     def do_run(self, text):
