@@ -187,8 +187,14 @@ class Interpreter(cmd.Cmd):
 
     def do_skip(self, text):
         """ Move passed a node if the user doesn't care about it """
-        self.index = self.index + 1
-    
+         
+        itrs = text 
+        if not itrs.isdigit():
+            itrs = 1
+        else: itrs = int(itrs)
+        
+        for i in range(0, itrs):
+            self.index = self.index + 1
 
     def do_save(self, name):
         """ Allows the user to create custom points in the history. Takes save point name as single argument """
