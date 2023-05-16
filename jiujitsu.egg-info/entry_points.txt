@@ -1,0 +1,2 @@
+[console_scripts]
+jj = jiujitsu.jInterpreter:main
