@@ -597,5 +597,10 @@ class Interpreter(cmd.Cmd):
         if Flag('c') in flags:
             self.env.clear_screen()
 
-if __name__ == '__main__':
+    
+def main():
     Interpreter().cmdloop()
+
+
+if __name__ == '__main__':
+    main()

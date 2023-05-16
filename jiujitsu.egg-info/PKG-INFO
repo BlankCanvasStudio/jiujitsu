@@ -1,6 +1,6 @@
 Metadata-Version: 2.1
 Name: jiujitsu
-Version: 0.1
+Version: 0.3
 Summary: A custom bash interpreter for malware execution
 Home-page: https://github.com/BlankCanvasStudio/jiujitsu
 Author: Spencer Stingley
