@@ -14,6 +14,7 @@ jiujitsu.egg-info/PKG-INFO
 jiujitsu.egg-info/SOURCES.txt
 jiujitsu.egg-info/dependency_links.txt
 jiujitsu.egg-info/entry_points.txt
+jiujitsu.egg-info/requires.txt
 jiujitsu.egg-info/top_level.txt
 jiujitsu/test/__init__.py
 jiujitsu/test/test_bpInterpreterBase.py

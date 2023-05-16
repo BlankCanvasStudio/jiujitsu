@@ -7,7 +7,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="jiujitsu",
-    version="0.3",
+    version="0.4",
     author="Spencer Stingley",
     author_email="sstingle@usc.edu",
     description="A custom bash interpreter for malware execution",
@@ -25,7 +25,7 @@ setuptools.setup(
         "Operating System :: OS Independent",
     ],
     python_requires = '>=3.6',
-    requires_install=['bashlex', 'bashparser'],
+    install_requires=['bashlex', 'bashparser'],
     test_suite='nose.collector',
     tests_require=['nose'],
 )
