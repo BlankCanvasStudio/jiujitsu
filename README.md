@@ -175,22 +175,6 @@ An alias of PASS
 
 <br/>
 
-## JSON
-
-It can be helpful to save environments and be able to reload them between sessions. The JSON command allows the user to do exactly this. 
-
-The command:
-
-    JSON -e <Filename>
-
-Exports the current environment to a JSON file specified in the first argument. This exports ALL environemt settings to a JSON but will not maintain the action stack. So aliases, file systems, variables, histories, etc. are all saved to the JSON and can be reloaded
-
-This environment can be reloaded (imported) at a later time using the command
-
-    JSON -i <Filename>
-
-<br/>
-
 ## EXIT
 
 Simply exits the terminal
