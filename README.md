@@ -4,8 +4,6 @@
 
 To start the CLI run: jj 
 
-main.py shows a simple example of using the interpreter without the need for the CLI
-
 <br/>
 
 ## Command Format
