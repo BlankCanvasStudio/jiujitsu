@@ -235,7 +235,7 @@ class State:
             output += '  ' + name + ':\n'
             node_text = '     ' + str(bashparser.NodeVisitor(node))
             node_text = node_text.replace('\n', '\n    ')  # auto indent properly
-            output += node_text
+            output += node_text + '\n'
             #for node in nodes:
             #    output += '    ' + str(NodeVisitor(node)) + '\n'
         if not len(self.functions):
