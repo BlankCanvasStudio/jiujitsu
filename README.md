@@ -2,7 +2,7 @@
 
 ## Starting the CLI
 
-To start the CLI run: python3 run.py
+To start the CLI run: jj 
 
 main.py shows a simple example of using the interpreter without the need for the CLI
 
