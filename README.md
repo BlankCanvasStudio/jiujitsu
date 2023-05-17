@@ -17,6 +17,18 @@ Judo commands take a very similar format to bash commands, but with a significan
 
 # Commands
 
+## HELP
+
+Displays an interactive menu which provides detailed information on all the commands.
+
+    >> help 
+
+Displays all the commands
+
+    >> help <command>
+
+Displays the documentation for the given command
+
 ## LOAD
 
 Takes a single argument of a bash file you wish to step through. Loading the file allows the user to step through it on the CLI using the next command or to undo a step with the undo command. This does not run any commands by default. 
