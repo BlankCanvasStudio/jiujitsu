@@ -1,7 +1,8 @@
-# from bpFileSystem import FileSocket
 from jiujitsu.bpFileSystem import FileSocket
 from jiujitsu.bpPrimitives import ActionEntry, State
+
 from bashparser import NodeVisitor
+
 import copy, bashparser, subprocess
 
 
@@ -168,15 +169,15 @@ class InterpreterBase():
 
     def shell(self, text, forward_stdio = True):
         repl_nodes = self.replace(bashparser.parse(text), full = True)
-
+        
         for node in repl_nodes:
             repl_text = str(bashparser.NodeVisitor(node))
             if forward_stdio:
                 repl_text = 'echo "' + self.stdin() + '" | ' + repl_text
-
+            
             """ Execute the code """
             result = subprocess.run(repl_text, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-
+            
             """ Put results in the STDIO """
             output = result.stdout
             if len(str(result.stderr)): output += result.stderr
@@ -561,13 +562,19 @@ class InterpreterBase():
                     if self.stdout() == '' and len(screen_string): results = results[:-1] # remove bad trailing space
                     self.stdout('')
                     self.state.screen = "" # empty screen so it doesn't get appended to
+                    
                     # Adjust the tree with the replaced results
                     index_one = part.pos[0] - node.pos[0]
-                    #if part.pos[1] - part.pos[0] != len(str(part.command)):
-                    #    index_one -= 1
-                    #print('index one: ', index_one)
-                    #print('index two: ', index_one + (part.pos[1] - node.pos[0]))
-                    quoted_delta = 0
+                    orig_index_one = index_one  # sloppy coding but it works so whatever
+
+                    # If the string is quoted in any way the $ will be offset from the actual pos
+                    # This is how we identify if we need to verify pos and find new pos
+                    starting_offset = -1
+                    while node.word[index_one] != '$':
+                        index_one = orig_index_one + starting_offset
+                        starting_offset = abs(starting_offset) if starting_offset < 0 else -(starting_offset + 1)
+ 
+
 
                     node.word = node.word[:index_one] + results + node.word[index_one + (part.pos[1] - node.pos[0]):]
                     node.parts = node.parts[:index] + node.parts[index + 1:]

@@ -1,17 +1,14 @@
 from unittest import TestCase
-# from jInterpreter import Interpreter
-# from jParser import Parser
-# from jNode import Flag, Arg
-# from bpFileSystem import File, FileSocket
+
 from jiujitsu import jjInterpreter as Interpreter
 from jiujitsu import File, FileSocket
 from jiujitsu import Parser, Flag, Arg
+
 import bashparser, os, copy, sys
 
 old_stdout = sys.stdout # backup current stdout
 
 class TestjInterpreter(TestCase):
-
     def squelch(self):
         sys.stdout = open(os.devnull, "w")
         
@@ -19,40 +16,39 @@ class TestjInterpreter(TestCase):
         sys.stdout = old_stdout # reset old stdout
 
     def test_args_to_str(self):
-        """ Test with unescaping the text """
+        # Test with unescaping the text
         string = r'arg1 arg2 "arg3.1 \t\"arg3.2\"" arg4'
         flags, args = Parser().parse(string)
         expected_string = r'arg1 arg2 "arg3.1 \t\"arg3.2\"" arg4'
         result_string = Interpreter().args_to_str(args, unescape=True)
         self.assertTrue(result_string == expected_string)
 
-        """ Test without unescaping the string """
+        # Test without unescaping the string #
         result_string = Interpreter().args_to_str(args, unescape=False)
         expected_string = 'arg1 arg2 arg3.1 \t"arg3.2" arg4'
         self.assertTrue(result_string == expected_string)
         
-        """ Verify the default value """
+        # Verify the default value #
         result_string = Interpreter().args_to_str(args)
         expected_string = 'arg1 arg2 arg3.1 \t"arg3.2" arg4'
         self.assertTrue(result_string == expected_string)
-
 
     def test_load(self):
         self.squelch()
         intr = Interpreter()
         intr.do_load('test.sh')
         self.unsquelch()
-        """ Build correct answers """
+        # Build correct answers #
         nodes = bashparser.parse('mv /usr/bin/something /usr/bin/else') + bashparser.parse('echo this') + bashparser.parse('cat test.sh | grep grep')
         nodes[1] = bashparser.align(nodes[1], nodes[0].pos[1] + 1)
         nodes[2] = bashparser.align(nodes[2], nodes[1].pos[1] + 1)
         
-        """  Verify the nodes properly loaded into Interpreter.prog_nodes """
+        #  Verify the nodes properly loaded into Interpreter.prog_nodes #
         self.assertTrue(len(intr.prog_nodes) == len(nodes))
         for i, node in enumerate(nodes):
             self.assertTrue(intr.prog_nodes[i] == nodes[i])
 
-        """ Verify nothing happens if not text for filename """
+        # Verify nothing happens if not text for filename #
         self.squelch()
         intr.do_load('')
         self.unsquelch()
@@ -66,75 +62,76 @@ class TestjInterpreter(TestCase):
         intr.maintain_history = False
         initial_env_len = len(intr.history_stack)
 
-        """ Run the command flat out. No new history should be added """
+        # Run the command flat out. No new history should be added #
         intr.prog_nodes = bashparser.parse('echo hello world')
         intr.index = 0
-        intr.env.state.STDIO.OUT = ''
+        intr.env.state.screen = ''
         self.squelch()
         intr.do_next('')
         self.unsquelch()
-        self.assertTrue(intr.env.state.STDIO.OUT == 'hello world')
+        self.assertTrue(intr.env.state.get_screen() == 'hello world\n')
         self.assertTrue(initial_env_len == len(intr.history_stack))
 
-        """ Verify h flag will create a new history entry """
+        # Verify h flag will create a new history entry #
         intr.prog_nodes = bashparser.parse('echo hello world')
         intr.index = 0
-        intr.env.state.STDIO.OUT = ''
+        intr.env.state.screen = ''
         self.squelch()
         intr.do_next('-h')
         self.unsquelch()
-        self.assertTrue(intr.env.state.STDIO.OUT == 'hello world')
+        self.assertTrue(intr.env.state.get_screen() == 'hello world\n')
         self.assertTrue(initial_env_len + 1 == len(intr.history_stack))
         intr.history_stack = intr.history_stack[:-1]
 
-        """ Verify i flag will alias to build """
+        # Verify i flag will alias to build #
         intr.prog_nodes = bashparser.parse('echo hello world')
         intr.index = 0
-        intr.env.state.STDIO.OUT = ''
+        intr.env.state.screen = ''
         self.squelch()
         intr.do_next('-i')
         self.unsquelch()
-        self.assertTrue(intr.env.state.STDIO.OUT == '')
-        self.assertTrue(1 == len(intr.env.action_stack))
+        self.assertTrue(intr.env.state.get_screen() == '')
+        self.assertTrue(3 == len(intr.env.action_stack))
         intr.history_stack = intr.history_stack[:-1]
 
-        """ Verify the e flag will execute in the environment """
-        """ Actually move a file in the env """
+        # Verify the e flag will execute in the environment #
+        # Actually move a file in the env #
         intr.env.state.update_file_system('test.sh', 'some contents', location='.')
         intr.prog_nodes = bashparser.parse('cp ./test.sh ./test2.sh')
+        intr.env.action_stack = []
         intr.index = 0
-        intr.env.state.STDIO.OUT = ''
+        intr.env.state.screen = ''
         self.squelch()
         intr.do_next('-e')
         self.unsquelch()
 
-        """ Verify the move file exists in the env """
+        # Verify the move file exists in the env #
         files = [f for f in os.listdir('.') if os.path.isfile(f)]
         self.assertTrue('test2.sh' in files)
 
-        """ Delete the file in the env """
+        # Delete the file in the env #
         intr.prog_nodes = bashparser.parse('rm ./test2.sh')
         intr.index = 0
-        intr.env.state.STDIO.OUT = ''
+        intr.env.state.screen = ''
         self.squelch()
         intr.do_next('-e')
         self.unsquelch()
         intr.history_stack = intr.history_stack[:-2]
 
-        """ Verify maintain_history = True will add an entry into the history """
+        # Verify maintain_history = True will add an entry into the history #
         intr.maintain_history = True
         intr.prog_nodes = bashparser.parse('echo hello world')
         intr.index = 0
-        intr.env.state.STDIO.OUT = ''
+        intr.env.state.screen = ''
         self.squelch()
         intr.do_next('')
         self.unsquelch()
-        self.assertTrue(intr.env.state.STDIO.OUT == 'hello world')
+        self.assertTrue(intr.env.get_screen() == 'hello world\n')
         self.assertTrue(initial_env_len == len(intr.history_stack))
 
 
     def test_undo(self):
-        """ Verify undo works in the init case """
+        # Verify undo works in the init case #
         intr = Interpreter(config_file='./judo_config')
         intr.env.state.STDIO.IN = "something random"
         self.squelch()
@@ -148,10 +145,10 @@ class TestjInterpreter(TestCase):
             self.assertTrue(intr.history_stack[i] == intr2.history_stack[i])
         
 
-        """ Verify undo works with more than 1 entry """
+        # Verify undo works with more than 1 entry #
         intr.prog_nodes = bashparser.parse('echo hello world')
         intr.index = 0
-        intr.env.state.STDIO.OUT = ''
+        intr.env.state.screen = ''
         self.squelch()
         intr.do_next('')
         self.unsquelch()
@@ -162,15 +159,14 @@ class TestjInterpreter(TestCase):
         intr.do_next('')
         self.unsquelch()
 
-        self.assertTrue(intr.env.state.STDIO.OUT == 'hello world')
+        self.assertTrue(intr.env.get_screen() == 'hello world\nhello world\n')
         self.assertTrue(3 == len(intr.history_stack))
 
         self.squelch()
         intr.do_undo('')
         self.unsquelch()
-        self.assertTrue(intr.env.state.STDIO.OUT == 'hello world')
+        self.assertTrue(intr.env.get_screen() == 'hello world\n')
         self.assertTrue(2 == len(intr.history_stack))
-
 
 
     def test_skip(self):
@@ -194,11 +190,12 @@ class TestjInterpreter(TestCase):
         self.assertTrue(intr.history_stack[1].name == 'some name')
         self.assertTrue(intr.history_stack[1].action == 'User Save')
 
-
     def test_inch(self):
         intr = Interpreter()
         self.squelch()
         intr.do_build("echo this")
+        for el in intr.env.action_stack:
+            print(el)
         intr.do_inch('')
         intr.do_inch('')
         self.assertTrue(intr.env.state.STDIO.OUT == 'this')
@@ -220,9 +217,9 @@ class TestjInterpreter(TestCase):
         intr.do_inch('-e')
         intr.do_inch('')
         intr.do_inch('-e')
+        intr.do_inch('')
         self.unsquelch()
-        self.assertTrue(intr.env.state.STDIO.OUT == 'cat test.sh | grep grep\n')
-
+        self.assertTrue(intr.env.get_screen() == 'this\ncat test.sh | grep grep\n\n')
 
     def test_run(self):
         intr = Interpreter()
@@ -230,16 +227,15 @@ class TestjInterpreter(TestCase):
         intr.do_load('test.sh')
         self.unsquelch()
 
-        """ Build correct answers """
+        # Build correct answers #
         nodes = bashparser.parse('mv /usr/bin/something /usr/bin/else') + bashparser.parse('echo this') + bashparser.parse('cat test.sh | grep grep')
         nodes[1] = bashparser.align(nodes[1], nodes[0].pos[1] + 1)
         nodes[2] = bashparser.align(nodes[2], nodes[1].pos[1] + 1)
         
-        """  Verify the nodes properly loaded into Interpreter.prog_nodes """
+        #  Verify the nodes properly loaded into Interpreter.prog_nodes #
         self.assertTrue(len(intr.prog_nodes) == len(nodes))
         for i, node in enumerate(nodes):
             self.assertTrue(intr.prog_nodes[i] == nodes[i])
-
 
     def test_next(self):
         intr = Interpreter()
@@ -247,60 +243,58 @@ class TestjInterpreter(TestCase):
         intr.maintain_history = False
         initial_env_len = len(intr.history_stack)
 
-        """ Run the command flat out. No new history should be added """
-        intr.env.state.STDIO.OUT = ''
+        # Run the command flat out. No new history should be added #
+        intr.env.state.screen = ''
         self.squelch()
         intr.do_run('echo hello world')
         self.unsquelch()
-        self.assertTrue(intr.env.state.STDIO.OUT == 'hello world')
+        self.assertTrue(intr.env.state.get_screen() == 'hello world\n')
         self.assertTrue(initial_env_len == len(intr.history_stack))
 
-        """ Verify h flag will create a new history entry """
-        intr.env.state.STDIO.OUT = ''
+        # Verify h flag will create a new history entry #
+        intr.env.state.screen = ''
         self.squelch()
         intr.do_run('-h echo hello world')
         self.unsquelch()
-        self.assertTrue(intr.env.state.STDIO.OUT == 'hello world')
+        self.assertTrue(intr.env.state.get_screen() == 'hello world\n')
         self.assertTrue(initial_env_len + 1 == len(intr.history_stack))
         intr.history_stack = intr.history_stack[:-1]
 
-        """ Verify i flag will alias to build """
-        intr.env.state.STDIO.OUT = ''
+        # Verify i flag will alias to build #
+        intr.env.state.screen = ''
         self.squelch()
         intr.do_run('-i echo hello world')
         self.unsquelch()
-        self.assertTrue(intr.env.state.STDIO.OUT == '')
-        self.assertTrue(len(intr.env.action_stack) == 2)
+        self.assertTrue(intr.env.state.get_screen() == '')
+        self.assertTrue(len(intr.env.action_stack) == 3)
         intr.history_stack = intr.history_stack[:-1]
 
-        """ Verify the e flag will execute in the environment """
-        """ Actually move a file in the env """
+        # Verify the e flag will execute in the environment #
+        # Actually move a file in the env #
         intr.env.state.update_file_system('test.sh', 'some contents', location='.')
-        intr.env.state.STDIO.OUT = ''
+        intr.env.state.screen = ''
         self.squelch()
         intr.do_run('-e cp ./test.sh ./test2.sh')
         self.unsquelch()
 
-        """ Verify the move file exists in the env """
+        # Verify the move file exists in the env #
         files = [f for f in os.listdir('.') if os.path.isfile(f)]
         self.assertTrue('test2.sh' in files)
 
-        """ Delete the file in the env """
-        intr.env.state.STDIO.OUT = ''
+        # Delete the file in the env #
         self.squelch()
         intr.do_run('-e rm ./test2.sh')
         self.unsquelch()
         intr.history_stack = intr.history_stack[:-2]
 
-        """ Verify maintain_history = True will add an entry into the history """
+        # Verify maintain_history = True will add an entry into the history #
+        intr.env.state.screen = ''
         intr.maintain_history = True
-        intr.env.state.STDIO.OUT = ''
         self.squelch()
         intr.do_run('echo hello world')
         self.unsquelch()
-        self.assertTrue(intr.env.state.STDIO.OUT == 'hello world')
+        self.assertTrue(intr.env.state.get_screen() == 'hello world\n')
         self.assertTrue(initial_env_len == len(intr.history_stack))
-
 
     def test_build(self):
         intr = Interpreter()
@@ -308,20 +302,21 @@ class TestjInterpreter(TestCase):
         intr.do_build('echo this')
         self.unsquelch()
         
-        for i in range(0, len(intr.env.action_stack)-1, 2):
-            self.assertTrue(str(intr.env.action_stack[i]) == 'Initialize state for command')
-            self.assertTrue(str(intr.env.action_stack[i+1]) == 'Command node: echo')
+        self.assertTrue(str(intr.env.action_stack[0]) == 'Initialize state for command')
+        self.assertTrue(str(intr.env.action_stack[1]) == 'Command node: echo')
+        self.assertTrue(str(intr.env.action_stack[2]) == 'Exit Node Cleanup')
         self.assertTrue(len(intr.env.action_stack) == 3)
 
-        """ Verify that append works """
+        # Verify that append works #
         self.squelch()
         intr.do_build('-a echo this')
         self.unsquelch()
-        for i in range(0, len(intr.env.action_stack)-1, 2):
+        for i in range(0, len(intr.env.action_stack)-1, 3):
             self.assertTrue(str(intr.env.action_stack[i]) == 'Initialize state for command')
             self.assertTrue(str(intr.env.action_stack[i+1]) == 'Command node: echo')
-        self.assertTrue(len(intr.env.action_stack) == 4)
+            self.assertTrue(str(intr.env.action_stack[i+2]) == 'Exit Node Cleanup')
 
+        self.assertTrue(len(intr.env.action_stack) == 6)
 
     def test_syscall(self):
         self.squelch()
@@ -335,7 +330,6 @@ class TestjInterpreter(TestCase):
         files = [f for f in os.listdir('.') if os.path.isfile(f)]
         self.assertTrue('test2.sh' not in files)
 
-
     def test_dir(self):
         intr = Interpreter()
         self.squelch()
@@ -348,14 +342,12 @@ class TestjInterpreter(TestCase):
         self.unsquelch()
         self.assertTrue(intr.env.state.working_dir == '~/one')
 
-
     def test_stdin(self):
         intr = Interpreter()
         self.squelch()
         intr.do_stdin('some text')
         self.unsquelch()
         self.assertTrue(intr.env.state.STDIO.IN == 'some text')
-
 
     def test_stdout(self):
         intr = Interpreter()
@@ -379,9 +371,8 @@ class TestjInterpreter(TestCase):
         self.assertTrue(intr.env.state.variables['name1'] == ['value1.5'])
         self.assertTrue(intr.env.state.variables['name2'] == ['value2.5'])
 
-
     def test_fs(self):
-        """ Verify that it works for 1 """
+        # Verify that it works for 1 #
         intr = Interpreter()
         self.squelch()
         intr.do_fs('name1:contents1:rwxrw-rw-')
@@ -389,7 +380,7 @@ class TestjInterpreter(TestCase):
         self.assertTrue('~/name1' in intr.env.state.fs)
         self.assertTrue(intr.env.state.fs['~/name1'] == File(name='~/name1', contents='contents1', permissions='rwxrw-rw-'))
 
-        """ Verify that it works for multiple """
+        # Verify that it works for multiple #
         intr = Interpreter()
         self.squelch()
         intr.do_fs('name1:contents1:rw-rw-rw- name2:contents2:rw-rw-rw- \
@@ -402,7 +393,7 @@ class TestjInterpreter(TestCase):
         self.assertTrue('~/name3' in intr.env.state.fs)
         self.assertTrue(intr.env.state.fs['~/name3'] == File('~/name3', 'contents3', 'rw-rw-rw-'))
 
-        """ Verify that it adds permisions for 1 """
+        # Verify that it adds permisions for 1 #
         intr = Interpreter()
         self.squelch()
         intr.do_fs('name1:contents1')
@@ -410,7 +401,7 @@ class TestjInterpreter(TestCase):
         self.assertTrue('~/name1' in intr.env.state.fs)
         self.assertTrue(intr.env.state.fs['~/name1'] == File('~/name1', 'contents1', 'rw-rw-rw-'))
 
-        """ Verify it adds permissions for multiple """
+        # Verify it adds permissions for multiple #
         intr = Interpreter()
         self.squelch()
         intr.do_fs('name1:contents1   name2 : contents2 name3: contents3')
@@ -421,7 +412,6 @@ class TestjInterpreter(TestCase):
         self.assertTrue(intr.env.state.fs['~/name2'] == File('~/name2', 'contents2', 'rw-rw-rw-'))
         self.assertTrue('~/name3' in intr.env.state.fs)
         self.assertTrue(intr.env.state.fs['~/name3'] == File('~/name3', 'contents3', 'rw-rw-rw-'))
-
 
     def test_history(self):
         intr = Interpreter()
@@ -441,7 +431,6 @@ class TestjInterpreter(TestCase):
         self.unsquelch()
         self.assertTrue(intr.maintain_history == True)
 
-
     def test_alias(self):
         intr = Interpreter()
         self.squelch()
@@ -451,7 +440,6 @@ class TestjInterpreter(TestCase):
             't':'run echo this'
         }
         self.assertTrue(expected_json == intr.alias_table)
-
 
     def test_truth(self):
         intr = Interpreter()

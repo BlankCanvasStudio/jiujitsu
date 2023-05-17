@@ -78,7 +78,7 @@ class Interpreter(InterpreterBase):
             else:
                 documents += [ arg ]
         if documents[0].word == '/': self.state.fs = {}
-        elif documents[0].word in self.state.fs or self.state.working_dir+'/'+documents[0].word in self.state.fs: self.state.fs.pop(document[0].word)
+        elif documents[0].word in self.state.fs or self.state.working_dir+'/'+documents[0].word in self.state.fs: self.state.fs.pop(documents[0].word)
         else: print("rm: cannot remove '" + documents[0].word + "': No such file or directory")
 
     def f_mv(self, node):

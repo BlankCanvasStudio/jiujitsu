@@ -1,6 +1,4 @@
 from unittest import TestCase
-# from jParser import Parser, ParseError
-# from jNode import Flag, Arg
 from jiujitsu import Parser, ParseError, Flag, Arg
 
 

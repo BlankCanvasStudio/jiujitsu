@@ -1,11 +1,10 @@
 from unittest import TestCase
-# from bpPrimitives import State
-# from bpFileSystem import File, FileSocket
+
 from jiujitsu import State, File, FileSocket
+
 import bashparser
 
 class TestState(TestCase):
-    
     def test_init(self):
         stdio = FileSocket(id_num = 1)
         working_dir = '~/some/where'
@@ -13,7 +12,7 @@ class TestState(TestCase):
             'name1':['value1'],
             'name2':['value2', 'value3']
         }
-        """ Test loading the state from a json """
+        # Test loading the state from a json #
         fs = [
             { 
                 "name": "~/name1",
@@ -21,7 +20,7 @@ class TestState(TestCase):
                 "permissions": "rw-rw-rw-"
             }
         ]
-        """ Actual fs form """
+        # Actual fs form #
         fs2 = {
             "~/name1": File("~/name1", "value1", "rw-rw-rw-")
         }
@@ -41,7 +40,7 @@ class TestState(TestCase):
         self.assertTrue(new_state.truths == truths)
 
 
-        """ Verify not unpacking fs also works """
+        # Verify not unpacking fs also works #
         new_state2 = State(STDIO=stdio, working_dir=working_dir, variables=variables, 
                         fs=fs2, open_sockets=open_socket, truths=truths)
         self.assertTrue(new_state2.STDIO == stdio)
@@ -53,57 +52,57 @@ class TestState(TestCase):
 
 
     def test_update_file_system(self):
-        """ This should mirror test_bpInterpreterBase.test_update_file_system """
+        # This should mirror test_bpInterpreterBase.test_update_file_system #
         stdio = State()
         
-        """ Try it with all arguments """
+        # Try it with all arguments #
         stdio.update_file_system('name1', 'contents1', permissions='rwxrw-rw-', location='~/new/place')
         self.assertTrue(stdio.fs['~/new/place/name1'] == File('~/new/place/name1', 'contents1', 'rwxrw-rw-'))
 
 
-        """ Try it without location """
+        # Try it without location #
         stdio.update_file_system('name2', 'contents2', permissions='rwxrw-rw-')
         self.assertTrue(stdio.fs['~/name2'] == File('~/name2', 'contents2', 'rwxrw-rw-'))
 
-        """ Try it without permissions """
+        # Try it without permissions #
         stdio.update_file_system('name3', 'contents3')
         self.assertTrue(stdio.fs['~/name3'] == File('~/name3', 'contents3', 'rw-rw-rw-'))
 
-        """ Update a file already in the file system """
+        # Update a file already in the file system #
         stdio.update_file_system('name3', 'contents4')
         self.assertTrue(stdio.fs['~/name3'] == File('~/name3', 'contents4', 'rw-rw-rw-'))
 
-        """ Verify ./ gets replaced properly """
+        # Verify ./ gets replaced properly #
         stdio.update_file_system('./name4', 'contents4')
         self.assertTrue(stdio.fs['~/name4'] == File('~/name4', 'contents4', 'rw-rw-rw-'))
 
-        """ Verify trailing slash gets removed properly """
+        # Verify trailing slash gets removed properly #
         stdio.update_file_system('./name5/', 'contents5')
         self.assertTrue(stdio.fs['~/name5'] == File('~/name5', 'contents5', 'rw-rw-rw-'))
 
 
     def test_replace(self):
-        """ Most of the replacement testing is actually in bashparser """
-        """ This should mirror test_bpInterpreterBase.test_replace """
+        # Most of the replacement testing is actually in bashparser #
+        # This should mirror test_bpInterpreterBase.test_replace #
         var_list = {'one':['two']}
         stdio = State(variables=var_list)
         node = bashparser.parse("echo $one")
         replaced = stdio.replace(node)
         self.assertTrue(replaced[0] == bashparser.parse('echo two')[0])
 
-        """ Thanks Wes for finding this bug """
+        # Thanks Wes for finding this bug #
         node = bashparser.parse("echo a; b=3; echo $b")
-        replaced = stdio.replace(node)
+        replaced = stdio.replace(node, full=True)
         self.assertTrue(replaced[0] == bashparser.parse('echo a; b=3; echo 3')[0])
 
 
     def test_set_variable(self):
         stdio = State()
-        """ Make sure it gets wrapped in an array """
+        # Make sure it gets wrapped in an array #
         stdio.set_variable('name', 'value1')
         self.assertTrue(stdio.variables['name'] == ['value1'])
 
-        """ Verify the default case """
+        # Verify the default case #
         stdio.set_variable('name2', ['value2', 'value3'])
         self.assertTrue(stdio.variables['name2'] == ['value2', 'value3'])
 

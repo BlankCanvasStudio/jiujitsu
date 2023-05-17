@@ -55,7 +55,8 @@ class Interpreter(cmd.Cmd):
                 text += arg.unescape() + ' '
             else:
                 text += arg.value + ' '
-        text = text[:-1]    # last space is wrong plz remove
+        if len(text):
+            text = text[:-1]    # last space is wrong plz remove
         return text
     
     def get_next_node(self):
@@ -156,7 +157,8 @@ class Interpreter(cmd.Cmd):
                     self.env.run(node)
             
             else:
-                while len(self.env.action_stack): self.do_inch(text)
+                while len(self.env.action_stack): 
+                    self.do_inch(text)
 
             if Flag('p') in flags:
                 return self.state([])
@@ -224,8 +226,10 @@ class Interpreter(cmd.Cmd):
         
         for i in range(0, itrs):
             if Flag('e') in flags:
-                node_str = self.env.action_stack[0].code
-                self.do_shell(node_str)
+                node_str = self.env.action_stack[0].code 
+                print('entered shell')
+                if node_str:
+                    self.do_shell(node_str)
                 self.env.action_stack.pop(0)
                 self.env.stdin('')
 
@@ -322,7 +326,7 @@ class Interpreter(cmd.Cmd):
         flags, args = self.parser.parse(text)
         text = self.args_to_str(args)
         
-        self.env.shell(text, Flag('n') in flags)
+        self.env.shell(text, Flag('n') not in flags)
         
     def do_dir(self, text):
         """ Deals with the printing and modificaiton of the interpreters working directory """
