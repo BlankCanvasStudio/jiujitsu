@@ -1,5 +1,9 @@
 # Judo: Bash, but safely!
 
+## Installation 
+
+To install jiujitsu run: `pip install jiujitsu` or build from source
+
 ## Starting the CLI
 
 To start the CLI run: jj 
